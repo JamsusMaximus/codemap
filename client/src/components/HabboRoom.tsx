@@ -421,17 +421,34 @@ export function HabboRoom() {
         const agents = agentCharactersRef.current;
         const thinkingAgents = thinkingAgentsRef.current;
 
+        // CLIENT-SIDE PROTECTION: Hard limit on agents
+        const MAX_CLIENT_AGENTS = 10;
+
+        // CLIENT-SIDE PROTECTION: Validate agent ID format (must be UUID)
+        const isValidAgentId = (id: string): boolean => {
+          if (!id || typeof id !== 'string') return false;
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          return uuidRegex.test(id);
+        };
+
+        // Filter to only valid agents
+        const validAgents = thinkingAgents.filter(a => isValidAgentId(a.agentId));
+
         // Add new agents or update existing ones
-        for (const agent of thinkingAgents) {
+        for (const agent of validAgents) {
+          // Skip if we're at max capacity and this is a new agent
+          if (agents.size >= MAX_CLIENT_AGENTS && !agents.has(agent.agentId)) {
+            console.warn(`Client: Rejecting agent ${agent.agentId} - at max capacity`);
+            continue;
+          }
+
           const existing = agents.get(agent.agentId);
           if (existing) {
             existing.currentCommand = agent.currentCommand;
             existing.displayName = agent.displayName;
             existing.lastActivity = agent.lastActivity;
             existing.isThinking = agent.isThinking;
-            // Agent is "waiting" if explicitly set OR if idle for 10+ seconds without thinking
-            const idleTime = Date.now() - agent.lastActivity;
-            existing.waitingForInput = agent.waitingForInput ?? (!agent.isThinking && idleTime > 10000);
+            existing.waitingForInput = agent.waitingForInput ?? false;
           } else {
             const index = agents.size;
             const layout = layoutRef.current;
@@ -461,7 +478,6 @@ export function HabboRoom() {
               }
             }
 
-            const idleTime = Date.now() - agent.lastActivity;
             agents.set(agent.agentId, {
               agentId: agent.agentId,
               displayName: agent.displayName,
@@ -473,15 +489,15 @@ export function HabboRoom() {
               frame: 0,
               colorIndex,
               currentCommand: agent.currentCommand,
-              waitingForInput: agent.waitingForInput ?? (!agent.isThinking && idleTime > 10000),
+              waitingForInput: agent.waitingForInput ?? false,
               lastActivity: agent.lastActivity,
               isThinking: agent.isThinking,
             });
           }
         }
 
-        // Remove agents no longer in list
-        const activeIds = new Set(thinkingAgents.map(a => a.agentId));
+        // Remove agents no longer in list (use validAgents to ensure consistency)
+        const activeIds = new Set(validAgents.map(a => a.agentId));
         for (const [id] of agents) {
           if (!activeIds.has(id)) {
             agents.delete(id);
