@@ -464,6 +464,7 @@ export function HabboRoom() {
             existing.currentCommand = agent.currentCommand;
             existing.displayName = agent.displayName;
             existing.lastActivity = agent.lastActivity;
+            existing.lastSeen = now;  // Mark as seen
             existing.isThinking = agent.isThinking;
             // Play sound when agent starts waiting for input
             const newWaitingState = agent.waitingForInput ?? false;
@@ -513,15 +514,18 @@ export function HabboRoom() {
               currentCommand: agent.currentCommand,
               waitingForInput: agent.waitingForInput ?? false,
               lastActivity: agent.lastActivity,
+              lastSeen: now,
               isThinking: agent.isThinking,
             });
           }
         }
 
-        // Remove agents no longer in list (use validAgents to ensure consistency)
-        const activeIds = new Set(validAgents.map(a => a.agentId));
-        for (const [id] of agents) {
-          if (!activeIds.has(id)) {
+        // Remove agents only after grace period (30 seconds of not being seen)
+        // This prevents flicker from brief network issues or timing gaps
+        const AGENT_GRACE_PERIOD_MS = 30000;
+        for (const [id, agent] of agents) {
+          if (now - agent.lastSeen > AGENT_GRACE_PERIOD_MS) {
+            console.log(`Removing agent ${agent.displayName} after ${AGENT_GRACE_PERIOD_MS / 1000}s grace period`);
             agents.delete(id);
           }
         }
@@ -536,16 +540,6 @@ export function HabboRoom() {
           // Find matching file in layout (handles absolute vs relative path mismatch)
           const knownFileIds = Array.from(filePositionsRef.current.keys());
           const matchingFileId = findMatchingFileId(recentActivity.filePath, knownFileIds);
-
-          // Debug: log matching attempt
-          if (recentActivity.type.endsWith('-end')) {
-            console.log('Screen flash attempt:', {
-              filePath: recentActivity.filePath,
-              knownFileIds: knownFileIds.slice(0, 5),
-              totalKnown: knownFileIds.length,
-              matchingFileId
-            });
-          }
 
           // Handle screen flashes for operation end events
           if (recentActivity.type === 'read-end') {

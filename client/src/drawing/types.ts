@@ -19,6 +19,7 @@ export interface AgentCharacter extends Character {
   waitingForInput?: boolean;
   isIdle?: boolean;
   lastActivity: number;
+  lastSeen: number;  // When agent was last seen in server's list (for grace period removal)
   isThinking?: boolean;
 }
 

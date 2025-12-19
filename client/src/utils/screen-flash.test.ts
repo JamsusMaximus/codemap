@@ -177,3 +177,73 @@ describe('timing constants', () => {
     expect(SCREEN_GLOW_HOLD + SCREEN_FADE_DURATION).toBe(8000);
   });
 });
+
+// Additional edge case tests for file matching with relative paths
+describe('findMatchingFileId - relative path edge cases', () => {
+  it('matches root file with ./ prefix', () => {
+    const knownFileIds = ['./README.md', './package.json', 'client/src/App.tsx'];
+    const result = findMatchingFileId('README.md', knownFileIds);
+    expect(result).toBe('./README.md');
+  });
+
+  it('matches file when server sends relative path directly', () => {
+    const knownFileIds = ['client/src/App.tsx', 'server/src/index.ts'];
+    const result = findMatchingFileId('client/src/App.tsx', knownFileIds);
+    expect(result).toBe('client/src/App.tsx');
+  });
+
+  it('matches first file when multiple have same name', () => {
+    const knownFileIds = [
+      'client/src/index.ts',
+      'server/src/index.ts',
+    ];
+    // Should match the first one found
+    const result = findMatchingFileId('/any/path/index.ts', knownFileIds);
+    expect(result).toBe('client/src/index.ts');
+  });
+
+  it('handles deeply nested paths', () => {
+    const knownFileIds = ['a/b/c/d/e/f/deep-file.ts'];
+    const result = findMatchingFileId('deep-file.ts', knownFileIds);
+    expect(result).toBe('a/b/c/d/e/f/deep-file.ts');
+  });
+
+  it('matches files with special characters in name', () => {
+    const knownFileIds = ['src/file-with-dashes.ts', 'src/file.test.ts'];
+    expect(findMatchingFileId('file-with-dashes.ts', knownFileIds)).toBe('src/file-with-dashes.ts');
+    expect(findMatchingFileId('file.test.ts', knownFileIds)).toBe('src/file.test.ts');
+  });
+
+  it('does not match partial filenames', () => {
+    const knownFileIds = ['src/App.tsx', 'src/AppContainer.tsx'];
+    // Should not match 'App.tsx' when looking for just 'App'
+    const result = findMatchingFileId('/path/App', knownFileIds);
+    expect(result).toBeUndefined();
+  });
+
+  it('handles files with no extension', () => {
+    const knownFileIds = ['Makefile', 'src/Dockerfile'];
+    expect(findMatchingFileId('/project/Makefile', knownFileIds)).toBe('Makefile');
+    expect(findMatchingFileId('Dockerfile', knownFileIds)).toBe('src/Dockerfile');
+  });
+});
+
+// Tests for flash type differentiation
+describe('ScreenFlash types', () => {
+  it('read flash has type read', () => {
+    const flash: ScreenFlash = { type: 'read', startTime: 1000 };
+    expect(flash.type).toBe('read');
+  });
+
+  it('write flash has type write', () => {
+    const flash: ScreenFlash = { type: 'write', startTime: 1000 };
+    expect(flash.type).toBe('write');
+  });
+
+  it('type does not affect opacity calculation', () => {
+    const readFlash: ScreenFlash = { type: 'read', startTime: 1000 };
+    const writeFlash: ScreenFlash = { type: 'write', startTime: 1000 };
+
+    expect(calculateFlashOpacity(readFlash, 1500)).toBe(calculateFlashOpacity(writeFlash, 1500));
+  });
+});

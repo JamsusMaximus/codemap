@@ -25,6 +25,19 @@ function detectProjectRoot(): string {
 
 const PROJECT_ROOT = detectProjectRoot();
 
+// Convert absolute file paths to relative (for client matching)
+function toRelativePath(absolutePath: string): string {
+  // Must match PROJECT_ROOT exactly (followed by / or end of string)
+  if (absolutePath === PROJECT_ROOT) {
+    return '.';
+  }
+  const prefix = PROJECT_ROOT + '/';
+  if (absolutePath.startsWith(prefix)) {
+    return absolutePath.slice(prefix.length) || '.';
+  }
+  return absolutePath;
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -167,8 +180,12 @@ app.post('/api/activity', (req, res) => {
 
   const graphData = activityStore.addActivity(event);
 
-  // Broadcast to all connected clients
-  wsManager.broadcast('activity', event);
+  // Broadcast to all connected clients with relative path for client matching
+  const clientEvent = {
+    ...event,
+    filePath: toRelativePath(event.filePath)
+  };
+  wsManager.broadcast('activity', clientEvent);
   wsManager.broadcast('graph', graphData);
 
   res.status(200).json({ success: true });
