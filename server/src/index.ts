@@ -42,6 +42,59 @@ activityStore.onGraphChange((graphData) => {
 const agentStates = new Map<string, AgentThinkingState>();
 let agentCounter = 0;
 const AGENT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_AGENTS = 10; // HARD LIMIT - never allow more than this
+const AGENT_CREATION_COOLDOWN_MS = 500; // Minimum time between new agent registrations
+let lastAgentCreationTime = 0;
+
+// Validate agent ID format - must be a valid UUID (session_id format)
+function isValidAgentId(id: string): boolean {
+  if (!id || typeof id !== 'string') return false;
+  // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
+// Safe agent registration with multiple protections
+function registerAgent(agentId: string, timestamp: number, source: string): AgentThinkingState | null {
+  // PROTECTION 1: Validate agent ID format
+  if (!isValidAgentId(agentId)) {
+    console.log(`[${new Date().toISOString()}] REJECTED invalid agent ID: ${agentId} (source: ${source})`);
+    return null;
+  }
+
+  // Check if agent already exists
+  let state = agentStates.get(agentId);
+  if (state) {
+    return state; // Already registered, return existing
+  }
+
+  // PROTECTION 2: Hard limit on total agents
+  if (agentStates.size >= MAX_AGENTS) {
+    console.log(`[${new Date().toISOString()}] REJECTED new agent - at max capacity (${MAX_AGENTS}): ${agentId}`);
+    return null;
+  }
+
+  // PROTECTION 3: Rate limiting - prevent rapid agent creation
+  const now = Date.now();
+  if (now - lastAgentCreationTime < AGENT_CREATION_COOLDOWN_MS) {
+    console.log(`[${new Date().toISOString()}] REJECTED new agent - rate limited: ${agentId}`);
+    return null;
+  }
+
+  // All checks passed - create the agent
+  lastAgentCreationTime = now;
+  agentCounter++;
+  state = {
+    agentId,
+    isThinking: false,
+    lastActivity: timestamp,
+    displayName: `Agent ${agentCounter}`,
+    currentCommand: undefined
+  };
+  agentStates.set(agentId, state);
+  console.log(`[${new Date().toISOString()}] New agent registered: ${state.displayName} (${agentId.slice(0, 8)}) [source: ${source}]`);
+  return state;
+}
 
 // Cleanup stale agents periodically
 setInterval(() => {
@@ -61,20 +114,11 @@ setInterval(() => {
 }, 60000); // Check every minute
 
 // Periodic sync broadcast - ensures client stays in sync even if events are missed
-// Also checks for agents waiting for permission (tool started but not completed)
 setInterval(() => {
   if (agentStates.size > 0) {
-    const now = Date.now();
-    for (const state of agentStates.values()) {
-      // If tool started 3+ seconds ago and hasn't completed, agent is waiting for permission
-      if (state.pendingToolStart && !state.waitingForInput && (now - state.pendingToolStart) > 3000) {
-        state.waitingForInput = true;
-        console.log(`[${new Date().toISOString()}] Agent ${state.displayName} waiting for permission`);
-      }
-    }
     wsManager.broadcast('thinking', getAgentStatesArray());
   }
-}, 1000); // Check every second
+}, 2000); // Sync every 2 seconds
 
 function getAgentStatesArray(): AgentThinkingState[] {
   return Array.from(agentStates.values());
@@ -85,37 +129,25 @@ app.post('/api/activity', (req, res) => {
   const event: FileActivityEvent = req.body;
   console.log(`[${new Date().toISOString()}] ${event.type.toUpperCase()}: ${event.filePath}${event.agentId ? ` (${event.agentId.slice(0, 8)})` : ''}`);
 
-  // CRITICAL: Also register agent from file activity events
-  // This ensures agents are tracked even if thinking events are missed
+  // Register or get existing agent using safe registration
   if (event.agentId) {
-    let state = agentStates.get(event.agentId);
-    if (!state) {
-      agentCounter++;
-      state = {
-        agentId: event.agentId,
-        isThinking: false,
-        lastActivity: event.timestamp,
-        displayName: `Agent ${agentCounter}`,
-        currentCommand: event.type.startsWith('read') ? 'Read' : 'Write'
-      };
-      agentStates.set(event.agentId, state);
-      console.log(`[${new Date().toISOString()}] New agent registered from activity: ${state.displayName} (${event.agentId})`);
+    const state = registerAgent(event.agentId, event.timestamp, 'activity');
+    if (state) {
+      // Always update last activity timestamp to keep agent alive
+      state.lastActivity = event.timestamp;
+
+      // Update current command and thinking state based on activity type
+      if (event.type.endsWith('-start')) {
+        state.currentCommand = event.type.startsWith('read') ? 'Read' : 'Write';
+        state.isThinking = true;
+      } else if (event.type.endsWith('-end')) {
+        // Keep command visible but mark as not actively thinking
+        state.isThinking = false;
+      }
+
+      // Always broadcast agent state on activity to keep client in sync
+      wsManager.broadcast('thinking', getAgentStatesArray());
     }
-
-    // Always update last activity timestamp to keep agent alive
-    state.lastActivity = event.timestamp;
-
-    // Update current command and thinking state based on activity type
-    if (event.type.endsWith('-start')) {
-      state.currentCommand = event.type.startsWith('read') ? 'Read' : 'Write';
-      state.isThinking = true;
-    } else if (event.type.endsWith('-end')) {
-      // Keep command visible but mark as not actively thinking
-      state.isThinking = false;
-    }
-
-    // Always broadcast agent state on activity to keep client in sync
-    wsManager.broadcast('thinking', getAgentStatesArray());
   }
 
   const graphData = activityStore.addActivity(event);
@@ -132,19 +164,12 @@ app.post('/api/thinking', (req, res) => {
   const event: ThinkingEvent = req.body;
   const { agentId, type, timestamp, toolName } = event;
 
-  // Register new agent or update existing
-  let state = agentStates.get(agentId);
+  // Register or get existing agent using safe registration
+  const state = registerAgent(agentId, timestamp, 'thinking');
   if (!state) {
-    agentCounter++;
-    state = {
-      agentId,
-      isThinking: false,
-      lastActivity: timestamp,
-      displayName: `Agent ${agentCounter}`,
-      currentCommand: undefined
-    };
-    agentStates.set(agentId, state);
-    console.log(`[${new Date().toISOString()}] New agent registered: ${state.displayName} (${agentId})`);
+    // Agent registration was rejected - still return success to not block hooks
+    res.status(200).json({ success: true, rejected: true });
+    return;
   }
 
   state.isThinking = type === 'thinking-start';
@@ -157,19 +182,13 @@ app.post('/api/thinking', (req, res) => {
     state.currentCommand = toolName;
   }
 
-  // Track when tool started (thinking-end = PreToolUse = tool starting)
-  // If tool doesn't complete within 3 seconds, agent is likely waiting for permission
-  if (type === 'thinking-end') {
-    state.pendingToolStart = Date.now();
-    // AskUserQuestion immediately sets waitingForInput
-    if (toolName === 'AskUserQuestion') {
-      state.waitingForInput = true;
-      console.log(`[${new Date().toISOString()}] Agent ${state.displayName} waiting for user input (AskUserQuestion)`);
-    }
+  // Set waitingForInput ONLY for AskUserQuestion tool
+  if (type === 'thinking-end' && toolName === 'AskUserQuestion') {
+    state.waitingForInput = true;
+    console.log(`[${new Date().toISOString()}] Agent ${state.displayName} waiting for user input (AskUserQuestion)`);
   } else if (type === 'thinking-start') {
     // Tool completed - clear waiting state
     state.waitingForInput = false;
-    state.pendingToolStart = undefined;
   }
 
   console.log(`[${new Date().toISOString()}] ${type.toUpperCase()}: ${state.displayName} ${toolName ? `(${toolName})` : ''}`);
