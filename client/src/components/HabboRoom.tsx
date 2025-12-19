@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useFileActivity } from '../hooks/useFileActivity';
 import { GraphNode, FolderScore } from '../types';
+import { playReadSound, playWriteSound, playWaitingSound, initAudio } from '../sounds';
 
 const API_URL = 'http://localhost:5174/api';
 
@@ -450,7 +451,12 @@ export function HabboRoom() {
             existing.displayName = agent.displayName;
             existing.lastActivity = agent.lastActivity;
             existing.isThinking = agent.isThinking;
-            existing.waitingForInput = agent.waitingForInput ?? false;
+            // Play sound when agent starts waiting for input
+            const newWaitingState = agent.waitingForInput ?? false;
+            if (newWaitingState && !existing.waitingForInput) {
+              playWaitingSound();
+            }
+            existing.waitingForInput = newWaitingState;
           } else {
             const index = agents.size;
             const layout = layoutRef.current;
@@ -519,12 +525,14 @@ export function HabboRoom() {
               type: 'read',
               startTime: now
             });
+            playReadSound();
           }
           if (recentActivity.type === 'write-end') {
             screenFlashesRef.current.set(recentActivity.filePath, {
               type: 'write',
               startTime: now
             });
+            playWriteSound();
           }
 
           // Move agents on operation start
@@ -880,6 +888,7 @@ export function HabboRoom() {
 
     // Drag to pan
     const handleMouseDown = (e: MouseEvent) => {
+      initAudio(); // Initialize audio on first user interaction
       isDraggingRef.current = true;
       lastDragPosRef.current = { x: e.clientX, y: e.clientY };
       canvas.style.cursor = 'grabbing';
