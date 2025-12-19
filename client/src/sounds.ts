@@ -2,6 +2,14 @@
 // Tasteful, subtle sounds that aren't annoying
 
 let audioContext: AudioContext | null = null;
+let isMuted = localStorage.getItem('codemap-muted') === 'true';
+
+export const getMuted = () => isMuted;
+
+export const setMuted = (muted: boolean) => {
+  isMuted = muted;
+  localStorage.setItem('codemap-muted', muted ? 'true' : 'false');
+};
 
 const getAudioContext = (): AudioContext => {
   if (!audioContext) {
@@ -12,6 +20,7 @@ const getAudioContext = (): AudioContext => {
 
 // Soft click/tap for reads - short, gentle
 export const playReadSound = () => {
+  if (isMuted) return;
   try {
     const ctx = getAudioContext();
     const oscillator = ctx.createOscillator();
@@ -36,6 +45,7 @@ export const playReadSound = () => {
 
 // Soft chime for writes - slightly longer, warmer
 export const playWriteSound = () => {
+  if (isMuted) return;
   try {
     const ctx = getAudioContext();
     const oscillator = ctx.createOscillator();
@@ -73,6 +83,7 @@ let lastWaitingSoundTime = 0;
 const WAITING_SOUND_INTERVAL = 3000; // Only play every 3 seconds max
 
 export const playWaitingSound = () => {
+  if (isMuted) return;
   const now = Date.now();
   if (now - lastWaitingSoundTime < WAITING_SOUND_INTERVAL) {
     return; // Throttle to avoid annoying repetition

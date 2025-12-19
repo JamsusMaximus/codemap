@@ -1,9 +1,36 @@
 // Main App component - CodeMap visualization application
 // Provides two views: Tree (force graph) and Hotel (isometric room)
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { FileGraph } from './components/FileGraph';
 import { ActivityLegend } from './components/ActivityLegend';
 import { HabboRoom } from './components/HabboRoom';
+import { getMuted, setMuted } from './sounds';
+
+// Mute button component
+function MuteButton() {
+  const [muted, setMutedState] = useState(getMuted());
+
+  const toggle = () => {
+    const newState = !muted;
+    setMuted(newState);
+    setMutedState(newState);
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      style={{
+        ...navLinkStyle,
+        cursor: 'pointer',
+        background: muted ? 'rgba(239, 68, 68, 0.9)' : 'rgba(17, 24, 39, 0.9)',
+      }}
+      title={muted ? 'Unmute sounds' : 'Mute sounds'}
+    >
+      {muted ? 'Muted' : 'Sound'}
+    </button>
+  );
+}
 
 // TreeView - Shows files as a force-directed graph
 function TreeView() {
@@ -35,6 +62,7 @@ function NavLinks() {
     }}>
       <Link to="/" style={navLinkStyle}>Tree</Link>
       <Link to="/hotel" style={navLinkStyle}>Hotel</Link>
+      <MuteButton />
     </div>
   );
 }
@@ -64,6 +92,7 @@ function HotelView() {
       }}>
         <Link to="/" style={navLinkStyle}>Tree</Link>
         <Link to="/hotel" style={navLinkStyle}>Hotel</Link>
+        <MuteButton />
       </div>
     </>
   );
