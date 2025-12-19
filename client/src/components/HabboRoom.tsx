@@ -8,7 +8,7 @@ const API_URL = 'http://localhost:5174/api';
 // Expands in middle, tapers at top and bottom for balanced look
 // Floor widths calculated so each floor fills same total width
 const FLOOR_CONFIG = [
-  { rooms: 2, filesPerRoom: 4, roomWidth: 23, roomHeight: 12 },  // Ground floor - 2 big rooms (fill width)
+  { rooms: 2, filesPerRoom: 8, roomWidth: 23, roomHeight: 14 },  // Ground floor - 2 big rooms (fill width)
   { rooms: 4, filesPerRoom: 2, roomWidth: 11, roomHeight: 10 },  // Floor 1 - 4 medium rooms
   { rooms: 4, filesPerRoom: 1, roomWidth: 11, roomHeight: 8 },   // Floor 2 - 4 small rooms
   { rooms: 2, filesPerRoom: 1, roomWidth: 23, roomHeight: 8 },   // Floor 3 (top) - 2 small rooms (fill width)
@@ -141,7 +141,9 @@ export function HabboRoom() {
         // Create file layouts (multiple desks per room based on config)
         const fileLayouts: FileLayout[] = [];
         const filesToShow = Math.min(config.filesPerRoom, recentFiles.length || 1);
-        const fileCols = Math.min(2, filesToShow);
+        // Allow up to 4 columns for wider rooms (roomWidth >= 20), otherwise 2
+        const maxCols = config.roomWidth >= 20 ? 4 : 2;
+        const fileCols = Math.min(maxCols, filesToShow);
 
         for (let fileIdx = 0; fileIdx < filesToShow; fileIdx++) {
           const col = fileIdx % fileCols;
