@@ -60,3 +60,10 @@ export interface ForceGraphLink {
   source: string | ForceGraphNode;
   target: string | ForceGraphNode;
 }
+
+// Hot folders from git activity API
+export interface FolderScore {
+  folder: string;
+  score: number;
+  recentFiles: string[];
+}

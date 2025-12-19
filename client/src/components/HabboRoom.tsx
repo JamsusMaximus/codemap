@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useFileActivity } from '../hooks/useFileActivity';
 import { GraphNode, FolderScore } from '../types';
 import { playReadSound, playWriteSound, playWaitingSound, initAudio } from '../sounds';
+import { findMatchingFileId } from '../utils/screen-flash';
 
 const API_URL = 'http://localhost:5174/api';
 
@@ -519,12 +520,9 @@ export function HabboRoom() {
         const recentActivity = recentActivityRef.current;
 
         if (recentActivity) {
-          // Extract filename for matching (handles absolute vs relative paths)
-          const fileName = recentActivity.filePath.split('/').pop() || '';
-
-          // Find matching file in layout and set flash by file.id
-          const matchingFileId = Array.from(filePositionsRef.current.keys())
-            .find(id => id.endsWith('/' + fileName) || id === fileName);
+          // Find matching file in layout (handles absolute vs relative path mismatch)
+          const knownFileIds = Array.from(filePositionsRef.current.keys());
+          const matchingFileId = findMatchingFileId(recentActivity.filePath, knownFileIds);
 
           // Handle screen flashes for operation end events
           if (recentActivity.type === 'read-end') {

@@ -2,9 +2,7 @@
 import { TILE_SIZE, FileLayout, RoomLayout, ScreenFlash } from './types';
 import { PALETTE } from './palette';
 import { seededRandom, adjustBrightness, adjustHSL, getShadowOffset } from './utils';
-
-const SCREEN_GLOW_HOLD = 5000;    // 5 seconds at full glow
-const SCREEN_FADE_DURATION = 3000; // 3 second fade out after hold
+import { calculateFlashOpacity, isFlashExpired } from '../utils/screen-flash';
 
 // Draw desk with monitor, chair, and accessories
 export const drawDesk = (
@@ -80,23 +78,16 @@ export const drawDesk = (
   const screenW = monW - 6;
   const screenH = monH - 6;
 
-  // Check for fading flash (5s hold + 2s fade)
+  // Check for fading flash (5s hold + 3s fade) - uses tested utility functions
   const flash = screenFlashes.get(file.id);
   let flashOpacity = 0;
   let flashType: 'read' | 'write' | null = null;
   if (flash) {
-    const elapsed = now - flash.startTime;
-    const totalDuration = SCREEN_GLOW_HOLD + SCREEN_FADE_DURATION;
-    if (elapsed < SCREEN_GLOW_HOLD) {
-      // Full brightness during hold period
-      flashOpacity = 1;
-      flashType = flash.type;
-    } else if (elapsed < totalDuration) {
-      // Fade out after hold
-      flashOpacity = 1 - ((elapsed - SCREEN_GLOW_HOLD) / SCREEN_FADE_DURATION);
-      flashType = flash.type;
-    } else {
+    if (isFlashExpired(flash, now)) {
       screenFlashes.delete(file.id);
+    } else {
+      flashOpacity = calculateFlashOpacity(flash, now);
+      flashType = flash.type;
     }
   }
 
