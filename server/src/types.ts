@@ -20,6 +20,7 @@ export interface AgentThinkingState {
   displayName: string;
   currentCommand?: string;  // Current tool/command being executed
   waitingForInput?: boolean;  // True when agent is waiting for user input (e.g., AskUserQuestion)
+  pendingToolStart?: number;  // Timestamp when tool started (for detecting permission waits)
 }
 
 export interface GraphNode {

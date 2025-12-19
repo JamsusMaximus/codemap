@@ -4,6 +4,7 @@ import path from 'path';
 import { createServer } from 'http';
 import { WebSocketManager } from './websocket.js';
 import { ActivityStore } from './activity-store.js';
+import { getHotFolders, clearCache as clearGitCache } from './git-activity.js';
 import { FileActivityEvent, ThinkingEvent, AgentThinkingState } from './types.js';
 
 const PORT = 5174; // Fixed port - never change
@@ -60,11 +61,20 @@ setInterval(() => {
 }, 60000); // Check every minute
 
 // Periodic sync broadcast - ensures client stays in sync even if events are missed
+// Also checks for agents waiting for permission (tool started but not completed)
 setInterval(() => {
   if (agentStates.size > 0) {
+    const now = Date.now();
+    for (const state of agentStates.values()) {
+      // If tool started 3+ seconds ago and hasn't completed, agent is waiting for permission
+      if (state.pendingToolStart && !state.waitingForInput && (now - state.pendingToolStart) > 3000) {
+        state.waitingForInput = true;
+        console.log(`[${new Date().toISOString()}] Agent ${state.displayName} waiting for permission`);
+      }
+    }
     wsManager.broadcast('thinking', getAgentStatesArray());
   }
-}, 2000); // Sync every 2 seconds
+}, 1000); // Check every second
 
 function getAgentStatesArray(): AgentThinkingState[] {
   return Array.from(agentStates.values());
@@ -147,13 +157,19 @@ app.post('/api/thinking', (req, res) => {
     state.currentCommand = toolName;
   }
 
-  // Set waitingForInput when AskUserQuestion starts (thinking-end = PreToolUse = tool starting)
-  // Clear it when any tool completes (thinking-start = PostToolUse = tool finished)
-  if (type === 'thinking-end' && toolName === 'AskUserQuestion') {
-    state.waitingForInput = true;
-    console.log(`[${new Date().toISOString()}] Agent ${state.displayName} waiting for user input`);
+  // Track when tool started (thinking-end = PreToolUse = tool starting)
+  // If tool doesn't complete within 3 seconds, agent is likely waiting for permission
+  if (type === 'thinking-end') {
+    state.pendingToolStart = Date.now();
+    // AskUserQuestion immediately sets waitingForInput
+    if (toolName === 'AskUserQuestion') {
+      state.waitingForInput = true;
+      console.log(`[${new Date().toISOString()}] Agent ${state.displayName} waiting for user input (AskUserQuestion)`);
+    }
   } else if (type === 'thinking-start') {
+    // Tool completed - clear waiting state
     state.waitingForInput = false;
+    state.pendingToolStart = undefined;
   }
 
   console.log(`[${new Date().toISOString()}] ${type.toUpperCase()}: ${state.displayName} ${toolName ? `(${toolName})` : ''}`);
@@ -172,6 +188,18 @@ app.get('/api/thinking', (_req, res) => {
 // Get current graph state
 app.get('/api/graph', (_req, res) => {
   res.json(activityStore.getGraphData());
+});
+
+// Get hot folders based on git history
+app.get('/api/hot-folders', async (req, res) => {
+  const limit = parseInt(req.query.limit as string) || 50;
+  try {
+    const hotFolders = await getHotFolders(PROJECT_ROOT, limit);
+    res.json(hotFolders);
+  } catch (error) {
+    console.error('Error getting hot folders:', error);
+    res.status(500).json({ error: 'Failed to get hot folders' });
+  }
 });
 
 // Health check
