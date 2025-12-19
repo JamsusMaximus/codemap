@@ -1,4 +1,5 @@
 // Tile drawing functions for grass, water, path
+// Used for outdoor environment around the hotel
 import { TILE_SIZE } from './types';
 import { PALETTE } from './palette';
 import { seededRandom, adjustBrightness } from './utils';

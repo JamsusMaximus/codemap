@@ -27,22 +27,22 @@ export const drawRoomThemedDecorations = (ctx: CanvasRenderingContext2D, room: R
 
   // HOOKS FOLDER THEME
   if (name.includes('hook')) {
-    drawHooksDecorations(ctx, px, py, w, h);
+    drawHooksDecorations(ctx, px, py, w, h, frame);
   }
 
   // COMPONENTS FOLDER THEME
   if (name.includes('component')) {
-    drawComponentsDecorations(ctx, px, py, w, h);
+    drawComponentsDecorations(ctx, px, py, w, h, frame);
   }
 
   // SRC FOLDER
   if (name === 'src') {
-    drawSrcDecorations(ctx, px, py, w, h);
+    drawSrcDecorations(ctx, px, py, w, h, frame);
   }
 
   // UTILS/TYPES folders
   if (name.includes('util') || name.includes('type') || name.includes('style')) {
-    drawUtilsDecorations(ctx, px, py, w, h);
+    drawUtilsDecorations(ctx, px, py, w, h, frame);
   }
 };
 
@@ -51,29 +51,45 @@ const drawLobbyDecorations = (
   px: number, py: number, w: number, h: number,
   room: RoomLayout, frame: number
 ) => {
-  // Coat rack
-  const crX = px + 20;
-  const crY = py + 20;
-  ctx.fillStyle = 'rgba(60, 40, 20, 0.25)';
+  // Reception desk with bell
+  const rdX = px + 15;
+  const rdY = py + 15;
+  ctx.fillStyle = 'rgba(60, 40, 20, 0.2)';
+  ctx.fillRect(rdX + 2, rdY + 14, 28, 4);
+  ctx.fillStyle = '#8A6A4A';
+  ctx.fillRect(rdX, rdY + 4, 28, 12);
+  ctx.fillStyle = '#9A7A5A';
+  ctx.fillRect(rdX, rdY, 28, 6);
+  ctx.fillStyle = '#7A5A3A';
+  ctx.fillRect(rdX, rdY + 12, 28, 4);
+  // Bell on desk
+  ctx.fillStyle = '#D4AF37';
   ctx.beginPath();
-  ctx.ellipse(crX + 3, crY + 22, 6, 2, 0, 0, Math.PI * 2);
+  ctx.arc(rdX + 22, rdY - 2, 4, Math.PI, 0, false);
   ctx.fill();
-  ctx.fillStyle = '#806848';
-  ctx.fillRect(crX + 1, crY + 2, 4, 20);
-  ctx.fillStyle = '#907858';
-  ctx.fillRect(crX + 1, crY + 2, 2, 19);
-  ctx.fillStyle = '#705838';
-  ctx.fillRect(crX - 2, crY + 19, 10, 3);
-  ctx.fillStyle = '#505050';
-  ctx.fillRect(crX - 2, crY + 3, 4, 2);
-  ctx.fillRect(crX + 4, crY + 3, 4, 2);
-  ctx.fillStyle = '#4060A0';
-  ctx.fillRect(crX - 3, crY + 4, 6, 8);
-  ctx.fillStyle = '#5070B0';
-  ctx.fillRect(crX - 3, crY + 4, 3, 7);
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath();
+  ctx.arc(rdX + 22, rdY - 2, 3, Math.PI, 0, false);
+  ctx.fill();
+  ctx.fillStyle = '#B8860B';
+  ctx.fillRect(rdX + 19, rdY - 2, 6, 2);
+  // Bell button
+  ctx.fillStyle = '#C0C0C0';
+  ctx.beginPath();
+  ctx.arc(rdX + 22, rdY - 5, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Guest book
+  ctx.fillStyle = '#4A3020';
+  ctx.fillRect(rdX + 4, rdY - 3, 10, 6);
+  ctx.fillStyle = '#F8F0E0';
+  ctx.fillRect(rdX + 5, rdY - 2, 8, 4);
+  ctx.fillStyle = '#303030';
+  ctx.fillRect(rdX + 6, rdY - 1, 6, 1);
+  ctx.fillRect(rdX + 6, rdY + 1, 4, 1);
 
   // Umbrella stand
-  const usX = px + 40;
+  const usX = px + 50;
   const usY = py + 26;
   ctx.fillStyle = 'rgba(60, 40, 20, 0.2)';
   ctx.beginPath();
@@ -219,6 +235,63 @@ const drawLobbyDecorations = (
   ctx.lineTo(stX + 5, stY - 14);
   ctx.closePath();
   ctx.fill();
+
+  // Information board with scrolling text effect
+  const ibX = px + 90;
+  const ibY = py + 10;
+  ctx.fillStyle = '#303030';
+  ctx.fillRect(ibX, ibY, 36, 20);
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(ibX, ibY, 36, 3);
+  // LED display
+  ctx.fillStyle = '#001020';
+  ctx.fillRect(ibX + 2, ibY + 4, 32, 12);
+  // Scrolling dots animation
+  const scrollOffset = Math.floor(frame * 0.1) % 40;
+  ctx.fillStyle = '#40FF90';
+  for (let dx = 0; dx < 6; dx++) {
+    const dotX = ibX + 4 + ((dx * 5 + scrollOffset) % 30);
+    ctx.fillRect(dotX, ibY + 8, 2, 4);
+  }
+  // "WELCOME" static text dots
+  ctx.fillStyle = '#60FFB0';
+  ctx.fillRect(ibX + 6, ibY + 6, 2, 2);
+  ctx.fillRect(ibX + 10, ibY + 6, 2, 2);
+  ctx.fillRect(ibX + 16, ibY + 6, 2, 2);
+  ctx.fillRect(ibX + 22, ibY + 6, 2, 2);
+  ctx.fillRect(ibX + 28, ibY + 6, 2, 2);
+
+  // Vending machine
+  const vmX = px + w - 30;
+  const vmY = py + h - 50;
+  ctx.fillStyle = 'rgba(40, 30, 50, 0.25)';
+  ctx.fillRect(vmX + 2, vmY + 36, 18, 4);
+  ctx.fillStyle = '#E04040';
+  ctx.fillRect(vmX, vmY, 18, 36);
+  ctx.fillStyle = '#F05050';
+  ctx.fillRect(vmX, vmY, 18, 4);
+  ctx.fillStyle = '#C03030';
+  ctx.fillRect(vmX, vmY + 32, 18, 4);
+  // Glass window
+  ctx.fillStyle = '#406080';
+  ctx.fillRect(vmX + 2, vmY + 6, 14, 18);
+  ctx.fillStyle = '#5080A0';
+  ctx.fillRect(vmX + 2, vmY + 6, 14, 3);
+  // Snacks inside
+  ctx.fillStyle = '#F0D020';
+  ctx.fillRect(vmX + 4, vmY + 10, 4, 3);
+  ctx.fillStyle = '#60B0E0';
+  ctx.fillRect(vmX + 9, vmY + 10, 4, 3);
+  ctx.fillStyle = '#80E060';
+  ctx.fillRect(vmX + 4, vmY + 15, 4, 3);
+  ctx.fillStyle = '#E080C0';
+  ctx.fillRect(vmX + 9, vmY + 15, 4, 3);
+  // Coin slot
+  ctx.fillStyle = '#202020';
+  ctx.fillRect(vmX + 14, vmY + 26, 3, 4);
+  // Dispenser
+  ctx.fillStyle = '#303030';
+  ctx.fillRect(vmX + 2, vmY + 26, 10, 6);
 };
 
 const drawClientDecorations = (
@@ -347,6 +420,75 @@ const drawClientDecorations = (
   ctx.fillRect(mtX + 15, mtY + 12, 10, 8);
   ctx.fillStyle = '#E8E8E0';
   ctx.fillRect(mtX + 26, mtY + 11, 8, 9);
+
+  // Phone/tablet mockup on stand
+  const pmX = px + 20;
+  const pmY = py + h - 45;
+  // Stand
+  ctx.fillStyle = 'rgba(50, 50, 60, 0.2)';
+  ctx.fillRect(pmX + 4, pmY + 28, 10, 3);
+  ctx.fillStyle = '#606060';
+  ctx.fillRect(pmX + 6, pmY + 20, 6, 10);
+  ctx.fillStyle = '#505050';
+  ctx.fillRect(pmX + 4, pmY + 18, 10, 4);
+  // Phone
+  ctx.fillStyle = '#303030';
+  ctx.fillRect(pmX, pmY, 16, 22);
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(pmX, pmY, 16, 2);
+  // Screen with UI
+  ctx.fillStyle = '#4080C0';
+  ctx.fillRect(pmX + 2, pmY + 3, 12, 16);
+  // UI elements
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(pmX + 3, pmY + 5, 10, 2);
+  ctx.fillStyle = '#80C0E0';
+  ctx.fillRect(pmX + 3, pmY + 9, 4, 4);
+  ctx.fillRect(pmX + 8, pmY + 9, 4, 4);
+  ctx.fillStyle = '#60A0D0';
+  ctx.fillRect(pmX + 3, pmY + 15, 10, 2);
+
+  // Wireframe poster
+  const wpX = px + w - 35;
+  const wpY = py + 12;
+  ctx.fillStyle = '#F8F8F0';
+  ctx.fillRect(wpX, wpY, 22, 18);
+  ctx.strokeStyle = '#C0C0B0';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(wpX, wpY, 22, 18);
+  // Wireframe elements
+  ctx.strokeStyle = '#808080';
+  ctx.strokeRect(wpX + 2, wpY + 2, 18, 3);
+  ctx.strokeRect(wpX + 2, wpY + 6, 8, 8);
+  ctx.strokeRect(wpX + 11, wpY + 6, 9, 4);
+  ctx.strokeRect(wpX + 11, wpY + 11, 9, 3);
+  ctx.fillStyle = '#E0E0D8';
+  ctx.fillRect(wpX + 3, wpY + 7, 6, 6);
+
+  // Sticky notes cluster
+  const snX = px + 40;
+  const snY = py + 10;
+  // Yellow sticky
+  ctx.fillStyle = '#FFF080';
+  ctx.fillRect(snX, snY, 10, 10);
+  ctx.fillStyle = '#E0D060';
+  ctx.fillRect(snX, snY + 8, 10, 2);
+  // Pink sticky
+  ctx.fillStyle = '#FFB0C0';
+  ctx.fillRect(snX + 8, snY + 3, 10, 10);
+  ctx.fillStyle = '#E090A0';
+  ctx.fillRect(snX + 8, snY + 11, 10, 2);
+  // Blue sticky
+  ctx.fillStyle = '#A0D8FF';
+  ctx.fillRect(snX + 4, snY + 8, 10, 10);
+  ctx.fillStyle = '#80B8E0';
+  ctx.fillRect(snX + 4, snY + 16, 10, 2);
+  // Scribble marks
+  ctx.fillStyle = '#606060';
+  ctx.fillRect(snX + 2, snY + 3, 5, 1);
+  ctx.fillRect(snX + 2, snY + 5, 4, 1);
+  ctx.fillRect(snX + 10, snY + 6, 5, 1);
+  ctx.fillRect(snX + 6, snY + 11, 5, 1);
 };
 
 const drawServerDecorations = (
@@ -493,11 +635,101 @@ const drawServerDecorations = (
   ctx.lineTo(cmtX + 26, cmtY + 5);
   ctx.stroke();
   ctx.lineWidth = 1;
+
+  // Cooling fan unit with animated blades
+  const cfX = px + w - 80;
+  const cfY = py + 20;
+  ctx.fillStyle = '#505860';
+  ctx.fillRect(cfX, cfY, 20, 20);
+  ctx.fillStyle = '#606870';
+  ctx.fillRect(cfX, cfY, 20, 3);
+  ctx.fillStyle = '#404850';
+  ctx.fillRect(cfX, cfY + 17, 20, 3);
+  // Fan grille
+  ctx.fillStyle = '#303840';
+  ctx.beginPath();
+  ctx.arc(cfX + 10, cfY + 10, 7, 0, Math.PI * 2);
+  ctx.fill();
+  // Animated fan blades
+  const fanAngle = (frame * 0.15) % (Math.PI * 2);
+  ctx.fillStyle = '#708090';
+  for (let blade = 0; blade < 4; blade++) {
+    const bladeAngle = fanAngle + (blade * Math.PI / 2);
+    ctx.save();
+    ctx.translate(cfX + 10, cfY + 10);
+    ctx.rotate(bladeAngle);
+    ctx.fillRect(-1, -6, 2, 6);
+    ctx.restore();
+  }
+  // Fan center
+  ctx.fillStyle = '#404850';
+  ctx.beginPath();
+  ctx.arc(cfX + 10, cfY + 10, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Fire extinguisher
+  const feX = px + 15;
+  const feY = py + h - 40;
+  ctx.fillStyle = 'rgba(60, 30, 30, 0.2)';
+  ctx.beginPath();
+  ctx.ellipse(feX + 5, feY + 26, 6, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Tank
+  ctx.fillStyle = '#D03030';
+  ctx.fillRect(feX, feY + 6, 10, 20);
+  ctx.fillStyle = '#E04040';
+  ctx.fillRect(feX, feY + 6, 5, 18);
+  ctx.fillStyle = '#B02020';
+  ctx.fillRect(feX + 8, feY + 6, 2, 18);
+  // Top
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(feX + 2, feY + 2, 6, 6);
+  ctx.fillStyle = '#505050';
+  ctx.fillRect(feX + 2, feY + 2, 6, 2);
+  // Handle
+  ctx.fillStyle = '#303030';
+  ctx.fillRect(feX + 8, feY + 3, 4, 2);
+  // Hose
+  ctx.strokeStyle = '#202020';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(feX + 2, feY + 4);
+  ctx.quadraticCurveTo(feX - 4, feY + 8, feX - 2, feY + 16);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  // Label
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(feX + 2, feY + 12, 6, 6);
+  ctx.fillStyle = '#D03030';
+  ctx.fillRect(feX + 3, feY + 14, 4, 2);
+
+  // Server status panel
+  const spX = px + 45;
+  const spY = py + 10;
+  ctx.fillStyle = '#404850';
+  ctx.fillRect(spX, spY, 24, 16);
+  ctx.fillStyle = '#505860';
+  ctx.fillRect(spX, spY, 24, 3);
+  // Display
+  ctx.fillStyle = '#001820';
+  ctx.fillRect(spX + 2, spY + 4, 20, 10);
+  // Status indicators
+  ctx.fillStyle = frame % 80 < 70 ? '#40FF40' : '#204020';
+  ctx.fillRect(spX + 4, spY + 6, 4, 3);
+  ctx.fillStyle = frame % 100 < 90 ? '#40FF40' : '#204020';
+  ctx.fillRect(spX + 10, spY + 6, 4, 3);
+  ctx.fillStyle = frame % 120 < 100 ? '#FFFF40' : '#404020';
+  ctx.fillRect(spX + 16, spY + 6, 4, 3);
+  // Labels
+  ctx.fillStyle = '#40A0FF';
+  ctx.fillRect(spX + 4, spY + 10, 3, 1);
+  ctx.fillRect(spX + 10, spY + 10, 3, 1);
+  ctx.fillRect(spX + 16, spY + 10, 3, 1);
 };
 
 const drawHooksDecorations = (
   ctx: CanvasRenderingContext2D,
-  px: number, py: number, w: number, h: number
+  px: number, py: number, w: number, h: number, frame: number
 ) => {
   // Tool board
   const tbX = px + 25;
@@ -594,11 +826,103 @@ const drawHooksDecorations = (
   ctx.fillRect(brX, brY + 26, 6, 8);
   ctx.fillStyle = '#A89050';
   ctx.fillRect(brX, brY + 30, 6, 4);
+
+  // Fishing rod leaning against wall (it's "hooks"!)
+  const frX = px + w - 20;
+  const frY = py + 10;
+  ctx.strokeStyle = '#8B5A2B';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(frX, frY + 35);
+  ctx.lineTo(frX + 3, frY);
+  ctx.stroke();
+  // Rod handle
+  ctx.fillStyle = '#4A3020';
+  ctx.fillRect(frX - 2, frY + 30, 4, 8);
+  ctx.fillStyle = '#5A4030';
+  ctx.fillRect(frX - 1, frY + 30, 2, 7);
+  // Reel
+  ctx.fillStyle = '#606060';
+  ctx.beginPath();
+  ctx.arc(frX, frY + 28, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#808080';
+  ctx.beginPath();
+  ctx.arc(frX, frY + 28, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Fishing line with animated hook
+  ctx.strokeStyle = '#C0C0C0';
+  ctx.lineWidth = 0.5;
+  const hookSway = Math.sin(frame * 0.02) * 2;
+  ctx.beginPath();
+  ctx.moveTo(frX + 3, frY);
+  ctx.lineTo(frX + 5 + hookSway, frY + 8);
+  ctx.stroke();
+  // Hook
+  ctx.strokeStyle = '#808080';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(frX + 5 + hookSway, frY + 8);
+  ctx.lineTo(frX + 5 + hookSway, frY + 12);
+  ctx.arc(frX + 3 + hookSway, frY + 12, 2, 0, Math.PI, false);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+
+  // Tackle box
+  const txX = px + w - 45;
+  const txY = py + h - 30;
+  ctx.fillStyle = 'rgba(40, 60, 40, 0.2)';
+  ctx.fillRect(txX + 2, txY + 16, 22, 3);
+  ctx.fillStyle = '#2A6A4A';
+  ctx.fillRect(txX, txY, 22, 16);
+  ctx.fillStyle = '#3A8A5A';
+  ctx.fillRect(txX, txY, 22, 3);
+  ctx.fillStyle = '#1A5A3A';
+  ctx.fillRect(txX, txY + 13, 22, 3);
+  // Handle
+  ctx.fillStyle = '#505050';
+  ctx.fillRect(txX + 8, txY - 2, 6, 3);
+  // Latches
+  ctx.fillStyle = '#C0C0C0';
+  ctx.fillRect(txX + 2, txY + 7, 3, 2);
+  ctx.fillRect(txX + 17, txY + 7, 3, 2);
+
+  // Pipe wrench
+  const pwX = px + 90;
+  const pwY = py + h - 25;
+  ctx.fillStyle = '#C04040';
+  ctx.fillRect(pwX, pwY, 4, 16);
+  ctx.fillStyle = '#D05050';
+  ctx.fillRect(pwX, pwY, 2, 15);
+  ctx.fillStyle = '#606060';
+  ctx.fillRect(pwX - 2, pwY + 12, 8, 6);
+  ctx.fillStyle = '#707070';
+  ctx.fillRect(pwX - 2, pwY + 12, 8, 2);
+  // Jaw
+  ctx.fillStyle = '#505050';
+  ctx.fillRect(pwX - 3, pwY + 14, 3, 4);
+  ctx.fillRect(pwX + 4, pwY + 15, 3, 3);
+
+  // Wall-mounted hooks (literal hooks!)
+  for (let i = 0; i < 3; i++) {
+    const hkX = px + 60 + i * 12;
+    const hkY = py + 12;
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(hkX, hkY, 2, 4);
+    ctx.strokeStyle = '#808080';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(hkX + 1, hkY + 4);
+    ctx.lineTo(hkX + 1, hkY + 8);
+    ctx.arc(hkX + 3, hkY + 8, 2, Math.PI, 0, true);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
 };
 
 const drawComponentsDecorations = (
   ctx: CanvasRenderingContext2D,
-  px: number, py: number, w: number, h: number
+  px: number, py: number, w: number, h: number, frame: number
 ) => {
   // Design posters
   const posterColors = ['#E86868', '#68B8E8', '#E8C848', '#88D868'];
@@ -671,11 +995,108 @@ const drawComponentsDecorations = (
   ctx.beginPath();
   ctx.ellipse(bbX + 8, bbY + 4, 6, 5, 0, 0, Math.PI * 2);
   ctx.fill();
+
+  // Lego-style building blocks stack
+  const lbX = px + 60;
+  const lbY = py + h - 40;
+  // Bottom block (red)
+  ctx.fillStyle = '#C03030';
+  ctx.fillRect(lbX, lbY + 16, 20, 10);
+  ctx.fillStyle = '#D04040';
+  ctx.fillRect(lbX, lbY + 16, 20, 3);
+  ctx.fillStyle = '#A02020';
+  ctx.fillRect(lbX, lbY + 23, 20, 3);
+  // Studs on red
+  ctx.fillStyle = '#E05050';
+  ctx.fillRect(lbX + 3, lbY + 13, 4, 3);
+  ctx.fillRect(lbX + 13, lbY + 13, 4, 3);
+  // Middle block (blue)
+  ctx.fillStyle = '#3060B0';
+  ctx.fillRect(lbX + 2, lbY + 6, 16, 10);
+  ctx.fillStyle = '#4080D0';
+  ctx.fillRect(lbX + 2, lbY + 6, 16, 3);
+  ctx.fillStyle = '#2050A0';
+  ctx.fillRect(lbX + 2, lbY + 13, 16, 3);
+  // Studs on blue
+  ctx.fillStyle = '#50A0F0';
+  ctx.fillRect(lbX + 5, lbY + 3, 4, 3);
+  ctx.fillRect(lbX + 11, lbY + 3, 4, 3);
+  // Top block (yellow)
+  ctx.fillStyle = '#D0A020';
+  ctx.fillRect(lbX + 4, lbY - 4, 12, 10);
+  ctx.fillStyle = '#E0C040';
+  ctx.fillRect(lbX + 4, lbY - 4, 12, 3);
+  ctx.fillStyle = '#B09010';
+  ctx.fillRect(lbX + 4, lbY + 3, 12, 3);
+  // Studs on yellow
+  ctx.fillStyle = '#F0E060';
+  ctx.fillRect(lbX + 7, lbY - 7, 4, 3);
+
+  // Component diagram on wall
+  const cdX = px + w - 60;
+  const cdY = py + 35;
+  ctx.fillStyle = '#F8F8F0';
+  ctx.fillRect(cdX, cdY, 30, 22);
+  ctx.strokeStyle = '#C0C0B0';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cdX, cdY, 30, 22);
+  // Component boxes
+  ctx.fillStyle = '#A0D0F0';
+  ctx.fillRect(cdX + 3, cdY + 3, 8, 6);
+  ctx.fillStyle = '#F0A0A0';
+  ctx.fillRect(cdX + 19, cdY + 3, 8, 6);
+  ctx.fillStyle = '#A0F0A0';
+  ctx.fillRect(cdX + 11, cdY + 13, 8, 6);
+  // Connecting lines
+  ctx.strokeStyle = '#606060';
+  ctx.beginPath();
+  ctx.moveTo(cdX + 11, cdY + 6);
+  ctx.lineTo(cdX + 19, cdY + 6);
+  ctx.moveTo(cdX + 7, cdY + 9);
+  ctx.lineTo(cdX + 7, cdY + 16);
+  ctx.lineTo(cdX + 11, cdY + 16);
+  ctx.moveTo(cdX + 23, cdY + 9);
+  ctx.lineTo(cdX + 23, cdY + 16);
+  ctx.lineTo(cdX + 19, cdY + 16);
+  ctx.stroke();
+  // Animated pulse on connection
+  const pulseOffset = (frame * 0.05) % 1;
+  ctx.fillStyle = '#4080FF';
+  ctx.beginPath();
+  ctx.arc(cdX + 11 + 8 * pulseOffset, cdY + 6, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Puzzle pieces decoration
+  const pzX = px + 90;
+  const pzY = py + 10;
+  // First piece (blue)
+  ctx.fillStyle = '#4080C0';
+  ctx.fillRect(pzX, pzY, 10, 10);
+  ctx.fillStyle = '#5090D0';
+  ctx.beginPath();
+  ctx.arc(pzX + 10, pzY + 5, 3, -Math.PI/2, Math.PI/2);
+  ctx.fill();
+  ctx.fillStyle = '#3070B0';
+  ctx.beginPath();
+  ctx.arc(pzX + 5, pzY + 10, 3, 0, Math.PI);
+  ctx.fill();
+  // Second piece (green) - connected
+  ctx.fillStyle = '#40A040';
+  ctx.fillRect(pzX + 13, pzY, 10, 10);
+  ctx.fillStyle = '#50B050';
+  ctx.beginPath();
+  ctx.arc(pzX + 23, pzY + 5, 3, -Math.PI/2, Math.PI/2);
+  ctx.fill();
+  // Notch cut out
+  ctx.fillStyle = '#F8F8F0';  // Same as wall
+  ctx.beginPath();
+  ctx.arc(pzX + 13, pzY + 5, 3, Math.PI/2, -Math.PI/2);
+  ctx.fill();
 };
 
 const drawSrcDecorations = (
   ctx: CanvasRenderingContext2D,
-  px: number, py: number, w: number, h: number
+  px: number, py: number, w: number, h: number, frame: number
 ) => {
   // Large plant
   const lpX = px + w - 30;
@@ -764,11 +1185,121 @@ const drawSrcDecorations = (
   ctx.fillRect(tcX - 1, tcY, 14, 3);
   ctx.fillStyle = '#404850';
   ctx.fillRect(tcX, tcY + 13, 12, 3);
+
+  // Code documentation binder
+  const bdX = px + 50;
+  const bdY = py + 10;
+  ctx.fillStyle = '#3050A0';
+  ctx.fillRect(bdX, bdY, 16, 20);
+  ctx.fillStyle = '#4060B0';
+  ctx.fillRect(bdX, bdY, 16, 3);
+  ctx.fillStyle = '#2040A0';
+  ctx.fillRect(bdX, bdY + 17, 16, 3);
+  // Spine
+  ctx.fillStyle = '#203080';
+  ctx.fillRect(bdX, bdY, 3, 20);
+  // Ring holes
+  ctx.fillStyle = '#C0C0C0';
+  ctx.fillRect(bdX + 1, bdY + 4, 2, 2);
+  ctx.fillRect(bdX + 1, bdY + 9, 2, 2);
+  ctx.fillRect(bdX + 1, bdY + 14, 2, 2);
+  // Label
+  ctx.fillStyle = '#F0F0E0';
+  ctx.fillRect(bdX + 5, bdY + 6, 8, 8);
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(bdX + 6, bdY + 8, 6, 1);
+  ctx.fillRect(bdX + 6, bdY + 10, 4, 1);
+
+  // Monitor showing code with animated cursor
+  const cmX = px + 75;
+  const cmY = py + 15;
+  // Monitor stand
+  ctx.fillStyle = '#505050';
+  ctx.fillRect(cmX + 8, cmY + 22, 8, 6);
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(cmX + 4, cmY + 26, 16, 3);
+  // Monitor frame
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(cmX, cmY, 24, 22);
+  ctx.fillStyle = '#484848';
+  ctx.fillRect(cmX, cmY, 24, 2);
+  // Screen
+  ctx.fillStyle = '#1E1E2E';
+  ctx.fillRect(cmX + 2, cmY + 2, 20, 18);
+  // Code lines (syntax highlighted)
+  ctx.fillStyle = '#C586C0';  // Purple (keyword)
+  ctx.fillRect(cmX + 4, cmY + 4, 6, 1);
+  ctx.fillStyle = '#9CDCFE';  // Blue (variable)
+  ctx.fillRect(cmX + 11, cmY + 4, 8, 1);
+  ctx.fillStyle = '#DCDCAA';  // Yellow (function)
+  ctx.fillRect(cmX + 4, cmY + 7, 10, 1);
+  ctx.fillStyle = '#CE9178';  // Orange (string)
+  ctx.fillRect(cmX + 6, cmY + 10, 12, 1);
+  ctx.fillStyle = '#608B4E';  // Green (comment)
+  ctx.fillRect(cmX + 4, cmY + 13, 14, 1);
+  ctx.fillStyle = '#9CDCFE';
+  ctx.fillRect(cmX + 4, cmY + 16, 8, 1);
+  // Animated cursor
+  const cursorVisible = Math.floor(frame * 0.03) % 2 === 0;
+  if (cursorVisible) {
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(cmX + 13, cmY + 16, 1, 2);
+  }
+
+  // Stack of papers
+  const ppX = px + w - 35;
+  const ppY = py + h - 45;
+  // Shadow
+  ctx.fillStyle = 'rgba(60, 60, 70, 0.2)';
+  ctx.fillRect(ppX + 3, ppY + 18, 16, 3);
+  // Papers
+  for (let p = 0; p < 3; p++) {
+    ctx.fillStyle = '#F8F8F0';
+    ctx.fillRect(ppX + p, ppY + p * 2, 14, 16);
+    ctx.fillStyle = '#E8E8E0';
+    ctx.fillRect(ppX + p, ppY + p * 2 + 14, 14, 2);
+    // Text lines
+    ctx.fillStyle = '#A0A0A0';
+    ctx.fillRect(ppX + p + 2, ppY + p * 2 + 3, 10, 1);
+    ctx.fillRect(ppX + p + 2, ppY + p * 2 + 6, 8, 1);
+    ctx.fillRect(ppX + p + 2, ppY + p * 2 + 9, 10, 1);
+  }
+
+  // Coffee mug
+  const mgX = px + 105;
+  const mgY = py + 12;
+  ctx.fillStyle = 'rgba(40, 30, 20, 0.2)';
+  ctx.beginPath();
+  ctx.ellipse(mgX + 4, mgY + 12, 5, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#E8E0D0';
+  ctx.fillRect(mgX, mgY, 8, 12);
+  ctx.fillStyle = '#F0E8E0';
+  ctx.fillRect(mgX, mgY, 8, 2);
+  ctx.fillStyle = '#D8D0C0';
+  ctx.fillRect(mgX, mgY + 10, 8, 2);
+  // Handle
+  ctx.strokeStyle = '#E8E0D0';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(mgX + 10, mgY + 6, 3, -Math.PI/2, Math.PI/2);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  // Coffee inside
+  ctx.fillStyle = '#4A3020';
+  ctx.fillRect(mgX + 1, mgY + 1, 6, 2);
+  // Steam
+  const steamPhase = (frame * 0.04) % 1;
+  const steamOpacity = (1 - steamPhase) * 0.3;
+  ctx.fillStyle = `rgba(255, 255, 255, ${steamOpacity})`;
+  ctx.beginPath();
+  ctx.arc(mgX + 3 + Math.sin(frame * 0.03) * 1, mgY - 2 - steamPhase * 6, 1.5, 0, Math.PI * 2);
+  ctx.fill();
 };
 
 const drawUtilsDecorations = (
   ctx: CanvasRenderingContext2D,
-  px: number, py: number, w: number, h: number
+  px: number, py: number, w: number, h: number, frame: number
 ) => {
   // Small bookshelf
   const bsX = px + 15;
@@ -808,4 +1339,129 @@ const drawUtilsDecorations = (
   ctx.beginPath();
   ctx.ellipse(spX + 5, spY + 5, 7, 7, 0, 0, Math.PI * 2);
   ctx.fill();
+
+  // Calculator
+  const clcX = px + 50;
+  const clcY = py + 12;
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(clcX, clcY, 16, 22);
+  ctx.fillStyle = '#484848';
+  ctx.fillRect(clcX, clcY, 16, 2);
+  ctx.fillStyle = '#303030';
+  ctx.fillRect(clcX, clcY + 20, 16, 2);
+  // Display
+  ctx.fillStyle = '#90B090';
+  ctx.fillRect(clcX + 2, clcY + 3, 12, 5);
+  ctx.fillStyle = '#506050';
+  // Animated display number
+  const calcNum = Math.floor(frame * 0.01) % 1000;
+  ctx.font = '4px monospace';
+  ctx.fillText(String(calcNum).padStart(4, ' '), clcX + 3, clcY + 7);
+  // Buttons
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      ctx.fillStyle = row === 0 && col === 3 ? '#C04040' : '#606060';
+      ctx.fillRect(clcX + 2 + col * 3.5, clcY + 10 + row * 3, 3, 2);
+    }
+  }
+
+  // Reference card / cheat sheet
+  const rcX = px + 70;
+  const rcY = py + 8;
+  ctx.fillStyle = '#F0E8D0';
+  ctx.fillRect(rcX, rcY, 20, 28);
+  ctx.fillStyle = '#E0D8C0';
+  ctx.fillRect(rcX, rcY + 26, 20, 2);
+  // Header
+  ctx.fillStyle = '#4080C0';
+  ctx.fillRect(rcX, rcY, 20, 5);
+  ctx.fillStyle = '#F0F0F0';
+  ctx.fillRect(rcX + 3, rcY + 2, 14, 1);
+  // Content lines
+  ctx.fillStyle = '#606060';
+  for (let line = 0; line < 6; line++) {
+    ctx.fillRect(rcX + 2, rcY + 8 + line * 3, 8 + (line % 2) * 4, 1);
+    ctx.fillStyle = '#A0A0A0';
+    ctx.fillRect(rcX + 12, rcY + 8 + line * 3, 6, 1);
+    ctx.fillStyle = '#606060';
+  }
+
+  // Ruler
+  const ruX = px + w - 50;
+  const ruY = py + 15;
+  ctx.fillStyle = '#E8D880';
+  ctx.fillRect(ruX, ruY, 30, 6);
+  ctx.fillStyle = '#D0C070';
+  ctx.fillRect(ruX, ruY + 4, 30, 2);
+  // Measurement marks
+  ctx.fillStyle = '#404040';
+  for (let mark = 0; mark < 10; mark++) {
+    const markH = mark % 5 === 0 ? 3 : 2;
+    ctx.fillRect(ruX + 3 + mark * 2.5, ruY + 1, 1, markH);
+  }
+
+  // Tape dispenser
+  const tdX = px + w - 40;
+  const tdY = py + h - 35;
+  ctx.fillStyle = 'rgba(40, 30, 30, 0.2)';
+  ctx.fillRect(tdX + 2, tdY + 12, 14, 3);
+  ctx.fillStyle = '#505050';
+  ctx.fillRect(tdX, tdY, 14, 12);
+  ctx.fillStyle = '#606060';
+  ctx.fillRect(tdX, tdY, 14, 2);
+  ctx.fillStyle = '#404040';
+  ctx.fillRect(tdX, tdY + 10, 14, 2);
+  // Tape roll
+  ctx.fillStyle = '#C8B888';
+  ctx.beginPath();
+  ctx.arc(tdX + 7, tdY + 6, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#8B6914';
+  ctx.beginPath();
+  ctx.arc(tdX + 7, tdY + 6, 2, 0, Math.PI * 2);
+  ctx.fill();
+  // Cutter edge
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(tdX + 12, tdY + 4, 3, 4);
+  // Tape strip
+  ctx.fillStyle = '#DDD090';
+  ctx.fillRect(tdX + 11, tdY + 5, 5, 1);
+
+  // Stapler
+  const stpX = px + 95;
+  const stpY = py + h - 25;
+  ctx.fillStyle = 'rgba(40, 30, 40, 0.2)';
+  ctx.fillRect(stpX + 1, stpY + 8, 14, 3);
+  ctx.fillStyle = '#303030';
+  ctx.fillRect(stpX, stpY + 4, 14, 6);
+  ctx.fillStyle = '#E04040';
+  ctx.fillRect(stpX, stpY, 14, 6);
+  ctx.fillStyle = '#F05050';
+  ctx.fillRect(stpX, stpY, 14, 2);
+  ctx.fillStyle = '#C03030';
+  ctx.fillRect(stpX, stpY + 4, 14, 2);
+
+  // Pen holder with pens
+  const phX = px + w - 65;
+  const phY = py + h - 40;
+  ctx.fillStyle = 'rgba(40, 40, 50, 0.2)';
+  ctx.beginPath();
+  ctx.ellipse(phX + 6, phY + 18, 7, 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#505860';
+  ctx.fillRect(phX, phY + 6, 12, 12);
+  ctx.fillStyle = '#606870';
+  ctx.fillRect(phX, phY + 6, 12, 2);
+  // Pens
+  ctx.fillStyle = '#3060A0';
+  ctx.fillRect(phX + 2, phY - 2, 2, 10);
+  ctx.fillStyle = '#A03030';
+  ctx.fillRect(phX + 5, phY - 4, 2, 12);
+  ctx.fillStyle = '#303030';
+  ctx.fillRect(phX + 8, phY, 2, 8);
+  // Pen tips
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(phX + 2, phY - 4, 2, 2);
+  ctx.fillRect(phX + 5, phY - 6, 2, 2);
+  ctx.fillRect(phX + 8, phY - 2, 2, 2);
 };
