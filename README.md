@@ -1,75 +1,75 @@
 # CodeMap Hotel
 
-Real-time pixel-art visualization of Claude Code agents. Watch AI agents read files, write code, and move around a cozy hotel workspace.
+Real-time pixel-art visualization of Claude Code agents.
+Watch AI agents read files, write code, and move around a cozy hotel workspace.
+
+---
 
 ## Quick Start
 
+**1. Clone and install** (one time)
 ```bash
-# 1. Clone and install (one time)
 git clone https://github.com/JamsusMaximus/codemap.git
 cd codemap
 npm install
-
-# 2. Go to the project you want to visualize
-cd ~/code/my-other-project
-
-# 3. Run the setup script (use absolute path to codemap)
-node ~/code/codemap/bin/setup.js
 ```
 
-That's it! The command will:
-- Configure Claude Code hooks in your project
-- Start the visualization server
-- Open the browser automatically
-
-### Example: Sibling Folders
-
-If you have this folder structure:
-```
-~/code/
-  ├── codemap/          # This repo
-  └── my-app/           # Project you want to visualize
-```
-
-Run:
+**2. Go to the project you want to visualize**
 ```bash
-cd ~/code/my-app
-node ../codemap/bin/setup.js
+cd ~/code/my-other-project
 ```
 
-Then start Claude Code in `my-app` and watch the agents appear!
+**3. Run the setup script**
+```bash
+node /path/to/codemap/bin/setup.js
+```
+
+This will configure hooks, start the server, and open your browser automatically.
+
+> **Example:** If codemap is at `~/code/codemap`, run `node ~/code/codemap/bin/setup.js`
+> **Example:** If codemap is a sibling folder, run `node ../codemap/bin/setup.js`
+
+---
 
 ## How It Works
 
 ```
-Claude Code → Hook Scripts → Server (5174) → Client (5173)
+Claude Code  →  Hook Scripts  →  Server (:5174)  →  Client (:5173)
+     │                │               │                  │
+  triggers         capture        tracks &           renders
+  hooks           events         broadcasts        pixel-art
 ```
 
-- Hooks fire on file read/write operations
-- Server tracks file activity and agent states
-- Client renders pixel-art hotel visualization
+| Component | Role |
+|-----------|------|
+| **Hooks** | Fire on file read/write operations |
+| **Server** | Tracks file activity and agent states |
+| **Client** | Renders the hotel visualization |
+
+---
 
 ## Features
 
-- Multiple agent support
-- Pixel-art aesthetic (Habbo Hotel style)
-- Animated environment (swaying grass, blinking LEDs, steam)
-- Room theming by folder type
-- File activity tracking (reads yellow, writes green)
-- Zoom & pan (scroll wheel, drag, arrow keys, ⌘+/−)
+| Feature | Description |
+|---------|-------------|
+| Multi-agent | See multiple Claude agents working simultaneously |
+| Pixel-art style | Habbo Hotel inspired aesthetic |
+| Animations | Swaying grass, blinking LEDs, steam effects |
+| Room themes | Different decor based on folder type |
+| Activity tracking | Yellow = reading, Green = writing |
+| Navigation | Zoom & pan with scroll wheel, drag, arrow keys, or ⌘+/− |
+
+---
 
 ## Troubleshooting
 
-```bash
-# Check server
-curl http://localhost:5174/api/health
+| Issue | Command |
+|-------|---------|
+| Check server | `curl http://localhost:5174/api/health` |
+| Check hooks | `cat .claude/settings.local.json` |
+| View logs | `tail -f /tmp/codemap-hook.log` |
 
-# Check hooks
-cat .claude/settings.local.json
-
-# View logs
-tail -f /tmp/codemap-hook.log
-```
+---
 
 ## License
 
