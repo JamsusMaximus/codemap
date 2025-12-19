@@ -519,19 +519,30 @@ export function HabboRoom() {
         const recentActivity = recentActivityRef.current;
 
         if (recentActivity) {
+          // Extract filename for matching (handles absolute vs relative paths)
+          const fileName = recentActivity.filePath.split('/').pop() || '';
+
+          // Find matching file in layout and set flash by file.id
+          const matchingFileId = Array.from(filePositionsRef.current.keys())
+            .find(id => id.endsWith('/' + fileName) || id === fileName);
+
           // Handle screen flashes for operation end events
           if (recentActivity.type === 'read-end') {
-            screenFlashesRef.current.set(recentActivity.filePath, {
-              type: 'read',
-              startTime: now
-            });
+            if (matchingFileId) {
+              screenFlashesRef.current.set(matchingFileId, {
+                type: 'read',
+                startTime: now
+              });
+            }
             playReadSound();
           }
           if (recentActivity.type === 'write-end') {
-            screenFlashesRef.current.set(recentActivity.filePath, {
-              type: 'write',
-              startTime: now
-            });
+            if (matchingFileId) {
+              screenFlashesRef.current.set(matchingFileId, {
+                type: 'write',
+                startTime: now
+              });
+            }
             playWriteSound();
           }
 

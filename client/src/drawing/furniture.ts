@@ -4,7 +4,7 @@ import { PALETTE } from './palette';
 import { seededRandom, adjustBrightness, adjustHSL, getShadowOffset } from './utils';
 
 const SCREEN_GLOW_HOLD = 5000;    // 5 seconds at full glow
-const SCREEN_FADE_DURATION = 2000; // 2 second fade out after hold
+const SCREEN_FADE_DURATION = 3000; // 3 second fade out after hold
 
 // Draw desk with monitor, chair, and accessories
 export const drawDesk = (
