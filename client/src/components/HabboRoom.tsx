@@ -1,6 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { useFileActivity } from '../hooks/useFileActivity';
-import { GraphNode } from '../types';
+import { GraphNode, FolderScore } from '../types';
+
+const API_URL = 'http://localhost:5174/api';
+
+// Multi-floor layout - symmetric diamond shape
+// Expands in middle, tapers at top and bottom for balanced look
+// Floor widths calculated so each floor fills same total width
+const FLOOR_CONFIG = [
+  { rooms: 2, filesPerRoom: 4, roomWidth: 23, roomHeight: 12 },  // Ground floor - 2 big rooms (fill width)
+  { rooms: 4, filesPerRoom: 2, roomWidth: 11, roomHeight: 10 },  // Floor 1 - 4 medium rooms
+  { rooms: 4, filesPerRoom: 1, roomWidth: 11, roomHeight: 8 },   // Floor 2 - 4 small rooms
+  { rooms: 2, filesPerRoom: 1, roomWidth: 23, roomHeight: 8 },   // Floor 3 (top) - 2 small rooms (fill width)
+];
+const MAX_FLOORS = FLOOR_CONFIG.length;
+const FLOOR_GAP = 1;
 import {
   TILE_SIZE,
   RoomLayout,
@@ -51,6 +65,7 @@ export function HabboRoom() {
   const lastNodeCountRef = useRef<number>(0);
   const lastActivityVersionRef = useRef(0);
   const lastThinkingVersionRef = useRef(0);
+  const hotFoldersRef = useRef<FolderScore[]>([]);
 
   // Agent trails - stores recent footprint positions
   const agentTrailsRef = useRef<Array<{
@@ -61,6 +76,11 @@ export function HabboRoom() {
   // Room activity tracking for pulse effect
   const roomActivityRef = useRef<Map<string, number>>(new Map());  // roomName -> lastActivityTimestamp
 
+  // Performance metrics tracking
+  const lastFrameTimeRef = useRef<number>(0);
+  const frameTimesRef = useRef<number[]>([]);
+  const fpsRef = useRef<number>(0);
+
   // Zoom and pan state
   const zoomRef = useRef(1);
   const panRef = useRef({ x: 0, y: 0 });
@@ -68,102 +88,137 @@ export function HabboRoom() {
   const lastDragPosRef = useRef({ x: 0, y: 0 });
   const keysDownRef = useRef<Set<string>>(new Set());
 
-  // Build layout - generates rooms from folder structure + adds lobby
+  // Build multi-floor layout from hot folders (pyramid structure)
   const buildLayout = (nodes: GraphNode[]): RoomLayout | null => {
-    if (nodes.length === 0) return null;
+    const hotFolders = hotFoldersRef.current;
+    if (hotFolders.length === 0 && nodes.length === 0) return null;
+
     const root = nodes.find(n => n.depth === -1);
-    if (!root) return null;
+    const rootName = root?.name || 'Project';
 
-    const childrenMap = new Map<string, GraphNode[]>();
-    nodes.forEach(n => childrenMap.set(n.id, []));
-    nodes.forEach(n => {
-      if (n.id === root.id) return;
-      const parentPath = n.id.substring(0, n.id.lastIndexOf('/'));
-      if (childrenMap.has(parentPath)) childrenMap.get(parentPath)!.push(n);
-    });
+    // Calculate total rooms needed
+    const totalRooms = FLOOR_CONFIG.reduce((sum, cfg) => sum + cfg.rooms, 0);
+    const foldersToShow = hotFolders.length > 0
+      ? hotFolders.slice(0, totalRooms)
+      : nodes.filter(n => n.isFolder && n.depth === 0).slice(0, totalRooms);
 
-    const layoutRoom = (node: GraphNode, x: number, y: number, depth: number): RoomLayout => {
-      const children = childrenMap.get(node.id) || [];
-      const folders = children.filter(c => c.isFolder);
-      const files = children.filter(c => !c.isFolder);
+    const roomChildren: RoomLayout[] = [];
+    let folderIndex = 0;
 
-      const fileCols = Math.min(4, Math.max(1, files.length));
-      const fileRows = Math.ceil(files.length / fileCols);
-      const baseWidth = Math.max(10, fileCols * 5 + 4);
-      const baseHeight = Math.max(7, fileRows * 4 + 5);
+    // Calculate max width (widest floor)
+    const maxFloorWidth = Math.max(...FLOOR_CONFIG.map(cfg => cfg.rooms * (cfg.roomWidth + 1) - 1));
 
-      const floorStyle = getFloorStyle(node.name, depth);
+    // Calculate floor Y positions (bottom to top)
+    const floorYPositions: number[] = [];
+    let currentY = 1;
+    for (let f = MAX_FLOORS - 1; f >= 0; f--) {
+      floorYPositions[f] = currentY;
+      currentY += FLOOR_CONFIG[f].roomHeight + FLOOR_GAP;
+    }
 
-      const fileLayouts: FileLayout[] = files.map((file, i) => {
-        const col = i % fileCols;
-        const row = Math.floor(i / fileCols);
-        const fx = x + 3 + col * 5;
-        const fy = y + 3 + row * 4;
-        filePositionsRef.current.set(file.id, {
-          x: fx * TILE_SIZE + TILE_SIZE * 1.5,
-          y: fy * TILE_SIZE + TILE_SIZE
+    // Create rooms for each floor
+    for (let floorNum = 0; floorNum < MAX_FLOORS && folderIndex < foldersToShow.length; floorNum++) {
+      const config = FLOOR_CONFIG[floorNum];
+      const floorWidth = config.rooms * (config.roomWidth + 1) - 1;
+      const floorStartX = 1 + Math.floor((maxFloorWidth - floorWidth) / 2); // Center the floor
+
+      for (let roomInFloor = 0; roomInFloor < config.rooms && folderIndex < foldersToShow.length; roomInFloor++) {
+        const folder = foldersToShow[folderIndex];
+        folderIndex++;
+
+        const roomX = floorStartX + roomInFloor * (config.roomWidth + 1);
+        const roomY = floorYPositions[floorNum];
+
+        const folderName = 'folder' in folder
+          ? (folder as FolderScore).folder.split('/').pop() || (folder as FolderScore).folder
+          : (folder as GraphNode).name;
+        const folderId = 'folder' in folder ? (folder as FolderScore).folder : (folder as GraphNode).id;
+
+        const floorStyle = getFloorStyle(folderName, floorNum);
+        const recentFiles = 'recentFiles' in folder ? (folder as FolderScore).recentFiles : [];
+        const score = 'score' in folder ? (folder as FolderScore).score : 0;
+
+        // Create file layouts (multiple desks per room based on config)
+        const fileLayouts: FileLayout[] = [];
+        const filesToShow = Math.min(config.filesPerRoom, recentFiles.length || 1);
+        const fileCols = Math.min(2, filesToShow);
+
+        for (let fileIdx = 0; fileIdx < filesToShow; fileIdx++) {
+          const col = fileIdx % fileCols;
+          const row = Math.floor(fileIdx / fileCols);
+          const deskX = roomX + 2 + col * 5;
+          const deskY = roomY + 3 + row * 4;
+
+          const fileName = recentFiles[fileIdx] || folderName;
+          const fileId = `${folderId}/${fileName}`;
+
+          // Register position for agent movement
+          filePositionsRef.current.set(fileId, {
+            x: deskX * TILE_SIZE + TILE_SIZE * 1.5,
+            y: deskY * TILE_SIZE + TILE_SIZE
+          });
+
+          fileLayouts.push({
+            x: deskX,
+            y: deskY,
+            name: fileName,
+            id: fileId,
+            isActive: false,
+            isWriting: false,
+            deskStyle: Math.floor(seededRandom(deskX * 53 + deskY * 97 + fileIdx * 13) * 3),
+            heatLevel: Math.min(1, score / 20)
+          });
+        }
+
+        // Also register the folder itself for agent routing
+        const centerDeskX = roomX + Math.floor(config.roomWidth / 2) - 2;
+        const centerDeskY = roomY + Math.floor(config.roomHeight / 2);
+        filePositionsRef.current.set(folderId, {
+          x: centerDeskX * TILE_SIZE + TILE_SIZE * 1.5,
+          y: centerDeskY * TILE_SIZE + TILE_SIZE
         });
-        // Calculate heat level based on activity (0-1 scale, maxes out at 10 accesses)
-        const totalActivity = (file.activityCount?.reads || 0) + (file.activityCount?.writes || 0);
-        const heatLevel = Math.min(1, totalActivity / 10);
-        return {
-          x: fx, y: fy, name: file.name, id: file.id,
-          isActive: file.activeOperation === 'read' || file.activeOperation === 'write',
-          isWriting: file.activeOperation === 'write',
-          deskStyle: Math.floor(seededRandom(x * 53 + y * 97 + i * 13) * 3),
-          heatLevel
-        };
-      });
 
-      const ROOM_GAP = 1;
-      let childX = x;
-      let childY = y + baseHeight + ROOM_GAP;
-      let maxChildHeight = 0;
-      const childLayouts: RoomLayout[] = [];
+        roomChildren.push({
+          x: roomX,
+          y: roomY,
+          width: config.roomWidth,
+          height: config.roomHeight,
+          name: folderName,
+          files: fileLayouts,
+          children: [],
+          depth: floorNum,
+          floorStyle
+        });
+      }
+    }
 
-      folders.forEach((folder, i) => {
-        if (i > 0) childX += ROOM_GAP;
-        const childRoom = layoutRoom(folder, childX, childY, depth + 1);
-        childLayouts.push(childRoom);
-        childX += childRoom.width;
-        maxChildHeight = Math.max(maxChildHeight, childRoom.height);
-      });
-
-      return {
-        x, y,
-        width: Math.max(baseWidth, childX - x),
-        height: baseHeight + (folders.length > 0 ? maxChildHeight + ROOM_GAP : 0),
-        name: node.name, files: fileLayouts, children: childLayouts,
-        depth, floorStyle
-      };
-    };
-
-    const mainLayout = layoutRoom(root, 1, 1, 0);
-
-    const lobbyWidth = 12;
-    const lobbyHeight = 8;
+    // Add lobby at the bottom
+    const lobbyY = currentY;
     const lobbyRoom: RoomLayout = {
       x: 1,
-      y: mainLayout.y + mainLayout.height + 1,
-      width: lobbyWidth,
-      height: lobbyHeight,
+      y: lobbyY,
+      width: maxFloorWidth,
+      height: 8,
       name: 'Lobby',
       files: [],
       children: [],
       depth: 0,
       floorStyle: 'wood'
     };
+    roomChildren.push(lobbyRoom);
+
+    const totalHeight = lobbyY + 8;
 
     return {
       x: 1,
       y: 1,
-      width: Math.max(mainLayout.width, lobbyWidth),
-      height: mainLayout.height + 1 + lobbyHeight,
-      name: root.name,
-      files: mainLayout.files,
-      children: [...mainLayout.children, lobbyRoom],
+      width: maxFloorWidth,
+      height: totalHeight,
+      name: rootName,
+      files: [],
+      children: roomChildren,
       depth: -1,
-      floorStyle: mainLayout.floorStyle
+      floorStyle: 'wood'
     };
   };
 
@@ -252,8 +307,8 @@ export function HabboRoom() {
     return room.depth === 0 ? 'medium' : 'medium';
   };
 
-  // Draw a complete room with all elements
-  const drawRoom = (ctx: CanvasRenderingContext2D, room: RoomLayout, now: number, frame: number) => {
+  // Draw room structure (floors, walls, furniture) - NOT signs
+  const drawRoomStructure = (ctx: CanvasRenderingContext2D, room: RoomLayout, now: number, frame: number) => {
     drawFloor(ctx, room);
     drawFloorVents(ctx, room);
     drawCableRuns(ctx, room);
@@ -292,9 +347,23 @@ export function HabboRoom() {
       }
     }
 
-    drawRoomSign(ctx, room);
-    room.children.forEach(child => drawRoom(ctx, child, now, frame));
+    // Recursively draw child room structures
+    room.children.forEach(child => drawRoomStructure(ctx, child, now, frame));
     drawDoorFrames(ctx, room);
+  };
+
+  // Draw all room signs (separate pass so they render on top of all floors)
+  const drawAllRoomSigns = (ctx: CanvasRenderingContext2D, room: RoomLayout) => {
+    drawRoomSign(ctx, room);
+    room.children.forEach(child => drawAllRoomSigns(ctx, child));
+  };
+
+  // Draw a complete room with all elements
+  const drawRoom = (ctx: CanvasRenderingContext2D, room: RoomLayout, now: number, frame: number) => {
+    // First pass: draw all room structures (floors, walls, furniture)
+    drawRoomStructure(ctx, room, now, frame);
+    // Second pass: draw all room signs on top
+    drawAllRoomSigns(ctx, room);
   };
 
   // Animation loop - ALL logic runs here, no useEffects that trigger re-renders
@@ -304,6 +373,16 @@ export function HabboRoom() {
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
+    // Fetch hot folders on mount
+    fetch(`${API_URL}/hot-folders?limit=${FLOOR_CONFIG.reduce((sum, cfg) => sum + cfg.rooms, 0)}`)
+      .then(res => res.json())
+      .then((data: FolderScore[]) => {
+        hotFoldersRef.current = data;
+        layoutRef.current = null;  // Force layout rebuild
+        layoutInitializedRef.current = false;
+      })
+      .catch(err => console.error('Failed to fetch hot folders:', err));
+
     let running = true;
     let frame = 0;
 
@@ -311,6 +390,22 @@ export function HabboRoom() {
       if (!running) return;
       const now = performance.now();
       frame++;
+
+      // Calculate FPS
+      if (lastFrameTimeRef.current > 0) {
+        const frameTime = now - lastFrameTimeRef.current;
+        frameTimesRef.current.push(frameTime);
+        // Keep last 60 frame times for averaging
+        if (frameTimesRef.current.length > 60) {
+          frameTimesRef.current.shift();
+        }
+        // Calculate average FPS every 10 frames
+        if (frame % 10 === 0 && frameTimesRef.current.length > 0) {
+          const avgFrameTime = frameTimesRef.current.reduce((a, b) => a + b, 0) / frameTimesRef.current.length;
+          fpsRef.current = Math.round(1000 / avgFrameTime);
+        }
+      }
+      lastFrameTimeRef.current = now;
 
       // Arrow key panning (smooth, runs every frame)
       const panSpeed = 8;
@@ -332,9 +427,11 @@ export function HabboRoom() {
           if (existing) {
             existing.currentCommand = agent.currentCommand;
             existing.displayName = agent.displayName;
-            existing.waitingForInput = agent.waitingForInput ?? false;
             existing.lastActivity = agent.lastActivity;
             existing.isThinking = agent.isThinking;
+            // Agent is "waiting" if explicitly set OR if idle for 10+ seconds without thinking
+            const idleTime = Date.now() - agent.lastActivity;
+            existing.waitingForInput = agent.waitingForInput ?? (!agent.isThinking && idleTime > 10000);
           } else {
             const index = agents.size;
             const layout = layoutRef.current;
@@ -364,6 +461,7 @@ export function HabboRoom() {
               }
             }
 
+            const idleTime = Date.now() - agent.lastActivity;
             agents.set(agent.agentId, {
               agentId: agent.agentId,
               displayName: agent.displayName,
@@ -375,7 +473,7 @@ export function HabboRoom() {
               frame: 0,
               colorIndex,
               currentCommand: agent.currentCommand,
-              waitingForInput: agent.waitingForInput ?? false,
+              waitingForInput: agent.waitingForInput ?? (!agent.isThinking && idleTime > 10000),
               lastActivity: agent.lastActivity,
               isThinking: agent.isThinking,
             });
@@ -420,7 +518,21 @@ export function HabboRoom() {
                 timestamp: Date.now()
               });
 
-              const filePos = filePositionsRef.current.get(recentActivity.filePath);
+              // Try file path first, then parent folders
+              let filePos = filePositionsRef.current.get(recentActivity.filePath);
+              if (!filePos) {
+                // Extract folder path and try to find matching room
+                const pathParts = recentActivity.filePath.split('/');
+                pathParts.pop(); // Remove filename
+                while (pathParts.length > 0 && !filePos) {
+                  const folderPath = pathParts.join('/') || '.';
+                  filePos = filePositionsRef.current.get(folderPath);
+                  if (!filePos) pathParts.pop();
+                }
+                // Try root folder
+                if (!filePos) filePos = filePositionsRef.current.get('.');
+              }
+
               if (filePos) {
                 const char = agentCharactersRef.current.get(agentId);
                 if (char) {
@@ -452,6 +564,7 @@ export function HabboRoom() {
 
         // Check if agent should go to coffee shop (inactive for 30+ seconds)
         const timeSinceActivity = Date.now() - char.lastActivity;
+
         const shouldGoToCoffeeShop = timeSinceActivity > 30000 && !char.isThinking && !char.waitingForInput;
 
         // Set target to coffee shop if inactive
@@ -627,6 +740,33 @@ export function HabboRoom() {
         ctx.fillStyle = '#6A7A8A';
         ctx.fillText('Waiting for file activity...', canvas.width / 2, canvas.height / 2);
       }
+
+      // Draw performance metrics in top left
+      const fps = fpsRef.current;
+      const avgFrameTime = frameTimesRef.current.length > 0
+        ? (frameTimesRef.current.reduce((a, b) => a + b, 0) / frameTimesRef.current.length).toFixed(1)
+        : '0.0';
+      const agentCount = agentCharactersRef.current.size;
+      const roomCount = layoutRef.current?.children?.length ?? 0;
+
+      const metricsX = 12;
+      const metricsY = 58;
+
+      // Background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(metricsX - 6, metricsY - 12, 130, 62);
+
+      // Text
+      ctx.fillStyle = fps >= 55 ? '#4ADE80' : fps >= 30 ? '#FACC15' : '#F87171';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText(`FPS: ${fps}`, metricsX, metricsY);
+
+      ctx.fillStyle = '#E5E5E5';
+      ctx.font = '10px monospace';
+      ctx.fillText(`Frame: ${avgFrameTime}ms`, metricsX, metricsY + 14);
+      ctx.fillText(`Agents: ${agentCount}`, metricsX, metricsY + 28);
+      ctx.fillText(`Rooms: ${roomCount}`, metricsX, metricsY + 42);
 
       // Draw zoom indicator when zoomed or panned
       const zoom = zoomRef.current;
