@@ -36,26 +36,30 @@ describe('findMatchingFileId', () => {
     'client/src/components/HabboRoom.tsx',
     'client/src/drawing/furniture.ts',
     'server/src/index.ts',
+    'client/src/index.ts',
     'hooks/thinking-hook.sh',
   ];
 
-  it('matches absolute path to relative file ID', () => {
+  it('matches exact path (priority 1)', () => {
+    const result = findMatchingFileId('server/src/index.ts', knownFileIds);
+    expect(result).toBe('server/src/index.ts');
+  });
+
+  it('matches exact path over filename match', () => {
+    // Both client and server have index.ts, exact match should win
+    const result = findMatchingFileId('client/src/index.ts', knownFileIds);
+    expect(result).toBe('client/src/index.ts');
+  });
+
+  it('matches by suffix when exact match not found (priority 2)', () => {
     const result = findMatchingFileId(
-      '/Users/james/code/codemap/client/src/components/HabboRoom.tsx',
+      'src/components/HabboRoom.tsx',
       knownFileIds
     );
     expect(result).toBe('client/src/components/HabboRoom.tsx');
   });
 
-  it('matches relative path to file ID', () => {
-    const result = findMatchingFileId(
-      'client/src/drawing/furniture.ts',
-      knownFileIds
-    );
-    expect(result).toBe('client/src/drawing/furniture.ts');
-  });
-
-  it('matches by filename only when path differs', () => {
+  it('matches by filename only as fallback (priority 3)', () => {
     const result = findMatchingFileId(
       '/different/path/furniture.ts',
       knownFileIds
@@ -79,6 +83,13 @@ describe('findMatchingFileId', () => {
   it('handles empty knownFileIds array', () => {
     const result = findMatchingFileId('/path/to/file.ts', []);
     expect(result).toBeUndefined();
+  });
+
+  it('prefers exact match for files with same name in different folders', () => {
+    // This is the key test - when we have client/src/index.ts and server/src/index.ts
+    // we should match the correct one based on path, not just filename
+    expect(findMatchingFileId('server/src/index.ts', knownFileIds)).toBe('server/src/index.ts');
+    expect(findMatchingFileId('client/src/index.ts', knownFileIds)).toBe('client/src/index.ts');
   });
 });
 
@@ -186,19 +197,19 @@ describe('findMatchingFileId - relative path edge cases', () => {
     expect(result).toBe('./README.md');
   });
 
-  it('matches file when server sends relative path directly', () => {
+  it('matches file when server sends relative path directly (exact match)', () => {
     const knownFileIds = ['client/src/App.tsx', 'server/src/index.ts'];
     const result = findMatchingFileId('client/src/App.tsx', knownFileIds);
     expect(result).toBe('client/src/App.tsx');
   });
 
-  it('matches first file when multiple have same name', () => {
+  it('uses filename fallback only when no path match exists', () => {
     const knownFileIds = [
       'client/src/index.ts',
       'server/src/index.ts',
     ];
-    // Should match the first one found
-    const result = findMatchingFileId('/any/path/index.ts', knownFileIds);
+    // When path doesn't match any known path, falls back to first filename match
+    const result = findMatchingFileId('/completely/different/path/index.ts', knownFileIds);
     expect(result).toBe('client/src/index.ts');
   });
 
@@ -225,6 +236,12 @@ describe('findMatchingFileId - relative path edge cases', () => {
     const knownFileIds = ['Makefile', 'src/Dockerfile'];
     expect(findMatchingFileId('/project/Makefile', knownFileIds)).toBe('Makefile');
     expect(findMatchingFileId('Dockerfile', knownFileIds)).toBe('src/Dockerfile');
+  });
+
+  it('exact match takes priority over suffix match', () => {
+    const knownFileIds = ['lib/src/utils.ts', 'src/utils.ts'];
+    // Exact match should win
+    expect(findMatchingFileId('src/utils.ts', knownFileIds)).toBe('src/utils.ts');
   });
 });
 

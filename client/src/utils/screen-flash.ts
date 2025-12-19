@@ -16,14 +16,33 @@ export function extractFilename(filePath: string): string {
 }
 
 /**
- * Find a matching file ID from a set of known file IDs by filename
- * Handles the case where activity events use absolute paths but
- * layout uses relative paths
+ * Find a matching file ID from a set of known file IDs
+ * Uses a priority-based matching strategy:
+ * 1. Exact path match (best)
+ * 2. Path suffix match (e.g., "src/index.ts" matches "client/src/index.ts")
+ * 3. Filename-only match (fallback for ambiguous cases)
  */
 export function findMatchingFileId(
   filePath: string,
   knownFileIds: string[]
 ): string | undefined {
+  if (!filePath) return undefined;
+
+  // Priority 1: Exact match
+  if (knownFileIds.includes(filePath)) {
+    return filePath;
+  }
+
+  // Priority 2: Path suffix match (handles partial paths)
+  // e.g., "server/src/index.ts" should match if filePath is "server/src/index.ts"
+  const suffixMatch = knownFileIds.find(id =>
+    id.endsWith('/' + filePath) || id === filePath
+  );
+  if (suffixMatch) {
+    return suffixMatch;
+  }
+
+  // Priority 3: Filename-only match (last resort)
   const fileName = extractFilename(filePath);
   if (!fileName) return undefined;
 
