@@ -537,6 +537,16 @@ export function HabboRoom() {
           const knownFileIds = Array.from(filePositionsRef.current.keys());
           const matchingFileId = findMatchingFileId(recentActivity.filePath, knownFileIds);
 
+          // Debug: log matching attempt
+          if (recentActivity.type.endsWith('-end')) {
+            console.log('Screen flash attempt:', {
+              filePath: recentActivity.filePath,
+              knownFileIds: knownFileIds.slice(0, 5),
+              totalKnown: knownFileIds.length,
+              matchingFileId
+            });
+          }
+
           // Handle screen flashes for operation end events
           if (recentActivity.type === 'read-end') {
             if (matchingFileId) {

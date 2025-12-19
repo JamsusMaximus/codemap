@@ -1,45 +1,40 @@
 #!/bin/bash
-# Claude Code hook script - captures thinking state and sends to visualization server
-# Supports multiple agent instances with unique IDs
+# Universal hook script - works with BOTH Claude Code AND Cursor
+# Captures thinking state and sends to visualization server
 
 EVENT_TYPE="$1"  # "thinking-start" or "thinking-end"
 SERVER_URL="http://localhost:5174/api/thinking"
 LOG_FILE="/tmp/codemap-hook.log"
 
-# Read JSON from stdin (contains tool info)
+# Read JSON from stdin
 INPUT=$(cat)
 
-# Extract tool name from input JSON
-TOOL_NAME=$(echo "$INPUT" | /usr/bin/jq -r '.tool_name // empty' 2>/dev/null)
+# UNIVERSAL: Extract session ID - works for Claude Code OR Cursor
+# Claude uses session_id, Cursor uses conversation_id
+AGENT_ID=$(echo "$INPUT" | /usr/bin/jq -r '.session_id // .conversation_id // empty' 2>/dev/null)
 
-# Use session_id from input if available, otherwise fall back to PID-based ID
-SESSION_ID=$(echo "$INPUT" | /usr/bin/jq -r '.session_id // empty' 2>/dev/null)
-
-if [ -n "$SESSION_ID" ]; then
-    # Use session_id - unique per Claude Code conversation
-    AGENT_ID_FILE="/tmp/codemap-agent-session-${SESSION_ID}.id"
-else
-    # Fallback: use grandparent PID
-    GRANDPARENT_PID=$(ps -o ppid= -p $PPID 2>/dev/null | tr -d ' ')
-    AGENT_ID_FILE="/tmp/codemap-agent-${GRANDPARENT_PID:-$PPID}.id"
+if [ -z "$AGENT_ID" ]; then
+    echo "$(date): SKIP - no session_id/conversation_id" >> "$LOG_FILE"
+    exit 0
 fi
 
-if [ -f "$AGENT_ID_FILE" ]; then
-    AGENT_ID=$(cat "$AGENT_ID_FILE")
-else
-    # Generate new UUID for this agent instance
-    AGENT_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
-    echo "$AGENT_ID" > "$AGENT_ID_FILE"
-fi
+# UNIVERSAL: Extract tool name - works for both tools
+# Claude: tool_name, Cursor: tool_name or command (for shell)
+TOOL_NAME=$(echo "$INPUT" | /usr/bin/jq -r '.tool_name // .command // empty' 2>/dev/null)
+
+# Detect source for logging (optional)
+SOURCE="unknown"
+echo "$INPUT" | /usr/bin/jq -e '.session_id' >/dev/null 2>&1 && SOURCE="claude"
+echo "$INPUT" | /usr/bin/jq -e '.conversation_id' >/dev/null 2>&1 && SOURCE="cursor"
 
 # Log for debugging
-echo "$(date): THINKING EVENT=$EVENT_TYPE AGENT=$AGENT_ID TOOL=$TOOL_NAME" >> "$LOG_FILE"
+echo "$(date): [$SOURCE] THINKING $EVENT_TYPE agent=${AGENT_ID:0:8} tool=$TOOL_NAME" >> "$LOG_FILE"
 
-# Build JSON payload
+# Build JSON payload with source identifier
 if [ -n "$TOOL_NAME" ]; then
-    JSON_PAYLOAD="{\"type\":\"$EVENT_TYPE\",\"agentId\":\"$AGENT_ID\",\"timestamp\":$(date +%s000),\"toolName\":\"$TOOL_NAME\"}"
+    JSON_PAYLOAD="{\"type\":\"$EVENT_TYPE\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000),\"toolName\":\"$TOOL_NAME\"}"
 else
-    JSON_PAYLOAD="{\"type\":\"$EVENT_TYPE\",\"agentId\":\"$AGENT_ID\",\"timestamp\":$(date +%s000)}"
+    JSON_PAYLOAD="{\"type\":\"$EVENT_TYPE\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000)}"
 fi
 
 # Send event to server (non-blocking with timeout)

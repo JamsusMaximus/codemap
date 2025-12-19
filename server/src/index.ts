@@ -54,11 +54,19 @@ function isValidAgentId(id: string): boolean {
   return uuidRegex.test(id);
 }
 
+// Track agent numbers per source for proper naming
+const agentCounterBySource: Record<string, number> = { claude: 0, cursor: 0, unknown: 0 };
+
 // Safe agent registration with multiple protections
-function registerAgent(agentId: string, timestamp: number, source: string): AgentThinkingState | null {
+function registerAgent(
+  agentId: string,
+  timestamp: number,
+  eventSource: string,  // Where this event came from (activity/thinking)
+  agentSource: 'claude' | 'cursor' | 'unknown' = 'unknown'  // Which tool (Claude/Cursor)
+): AgentThinkingState | null {
   // PROTECTION 1: Validate agent ID format
   if (!isValidAgentId(agentId)) {
-    console.log(`[${new Date().toISOString()}] REJECTED invalid agent ID: ${agentId} (source: ${source})`);
+    console.log(`[${new Date().toISOString()}] REJECTED invalid agent ID: ${agentId} (${eventSource})`);
     return null;
   }
 
@@ -81,18 +89,25 @@ function registerAgent(agentId: string, timestamp: number, source: string): Agen
     return null;
   }
 
-  // All checks passed - create the agent
+  // All checks passed - create the agent with source-specific name
   lastAgentCreationTime = now;
-  agentCounter++;
+  agentCounterBySource[agentSource]++;
+
+  // Name based on source: "Claude 1", "Cursor 1", etc.
+  const sourceName = agentSource === 'claude' ? 'Claude' :
+                     agentSource === 'cursor' ? 'Cursor' : 'Agent';
+  const displayName = `${sourceName} ${agentCounterBySource[agentSource]}`;
+
   state = {
     agentId,
+    source: agentSource,
     isThinking: false,
     lastActivity: timestamp,
-    displayName: `Agent ${agentCounter}`,
+    displayName,
     currentCommand: undefined
   };
   agentStates.set(agentId, state);
-  console.log(`[${new Date().toISOString()}] New agent registered: ${state.displayName} (${agentId.slice(0, 8)}) [source: ${source}]`);
+  console.log(`[${new Date().toISOString()}] New agent registered: ${displayName} (${agentId.slice(0, 8)}) [${eventSource}]`);
   return state;
 }
 
@@ -131,7 +146,7 @@ app.post('/api/activity', (req, res) => {
 
   // Register or get existing agent using safe registration
   if (event.agentId) {
-    const state = registerAgent(event.agentId, event.timestamp, 'activity');
+    const state = registerAgent(event.agentId, event.timestamp, 'activity', event.source || 'unknown');
     if (state) {
       // Always update last activity timestamp to keep agent alive
       state.lastActivity = event.timestamp;
@@ -165,7 +180,7 @@ app.post('/api/thinking', (req, res) => {
   const { agentId, type, timestamp, toolName } = event;
 
   // Register or get existing agent using safe registration
-  const state = registerAgent(agentId, timestamp, 'thinking');
+  const state = registerAgent(agentId, timestamp, 'thinking', event.source || 'unknown');
   if (!state) {
     // Agent registration was rejected - still return success to not block hooks
     res.status(200).json({ success: true, rejected: true });

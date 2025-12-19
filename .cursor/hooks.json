@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeReadFile": [
+      {
+        "command": "/Users/james/code/codemap/hooks/file-activity-hook.sh read-start"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "/Users/james/code/codemap/hooks/file-activity-hook.sh write-end"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "/Users/james/code/codemap/hooks/thinking-hook.sh thinking-end"
+      }
+    ],
+    "afterShellExecution": [
+      {
+        "command": "/Users/james/code/codemap/hooks/thinking-hook.sh thinking-start"
+      }
+    ],
+    "beforeMCPExecution": [
+      {
+        "command": "/Users/james/code/codemap/hooks/thinking-hook.sh thinking-end"
+      }
+    ],
+    "afterMCPExecution": [
+      {
+        "command": "/Users/james/code/codemap/hooks/thinking-hook.sh thinking-start"
+      }
+    ],
+    "afterAgentThought": [
+      {
+        "command": "/Users/james/code/codemap/hooks/thinking-hook.sh thinking-start"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "/Users/james/code/codemap/hooks/thinking-hook.sh thinking-end"
+      }
+    ]
+  }
+}

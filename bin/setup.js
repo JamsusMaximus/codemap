@@ -2,7 +2,8 @@
 /**
  * CodeMap Hotel Setup Script
  *
- * Generates Claude Code hooks configuration for the current project.
+ * Universal setup for BOTH Claude Code AND Cursor.
+ * Configures hooks for whichever tool(s) are present.
  * Run this in your project root: npx codemap-hotel setup
  */
 
@@ -17,7 +18,7 @@ const TARGET_DIR = process.cwd();
 const SERVER_PORT = 5174;
 const CLIENT_PORT = 5173;
 
-// Hook paths (relative to codemap installation)
+// Hook paths (absolute - works for both tools)
 const FILE_HOOK = path.join(CODEMAP_ROOT, 'hooks', 'file-activity-hook.sh');
 const THINKING_HOOK = path.join(CODEMAP_ROOT, 'hooks', 'thinking-hook.sh');
 
@@ -70,6 +71,26 @@ const permissionsConfig = {
       `Bash(${THINKING_HOOK} thinking-start:*)`,
       `Bash(${THINKING_HOOK} thinking-end:*)`
     ]
+  }
+};
+
+// Cursor hooks configuration (.cursor/hooks.json)
+const cursorHooksConfig = {
+  version: 1,
+  hooks: {
+    // File operations
+    beforeReadFile: [{ command: `${FILE_HOOK} read-start` }],
+    afterFileEdit: [{ command: `${FILE_HOOK} write-end` }],
+    // Shell/command operations
+    beforeShellExecution: [{ command: `${THINKING_HOOK} thinking-end` }],
+    afterShellExecution: [{ command: `${THINKING_HOOK} thinking-start` }],
+    // MCP tool operations
+    beforeMCPExecution: [{ command: `${THINKING_HOOK} thinking-end` }],
+    afterMCPExecution: [{ command: `${THINKING_HOOK} thinking-start` }],
+    // Agent thinking
+    afterAgentThought: [{ command: `${THINKING_HOOK} thinking-start` }],
+    // Prompt submission
+    beforeSubmitPrompt: [{ command: `${THINKING_HOOK} thinking-end` }]
   }
 };
 
@@ -134,7 +155,7 @@ async function run() {
     console.log('✓ Server already running\n');
     console.log('🌐 Opening http://localhost:5173/hotel\n');
     openBrowser('http://localhost:5173/hotel');
-    console.log('Start Claude Code in your project to see agents appear! 🎮');
+    console.log('Start Claude Code or Cursor in your project to see agents! 🎮');
     return;
   }
 
@@ -146,18 +167,16 @@ async function run() {
   console.log('\n🌐 Opening http://localhost:5173/hotel\n');
   setTimeout(() => openBrowser('http://localhost:5173/hotel'), 2000);
 
-  console.log('Start Claude Code in your project to see agents appear! 🎮\n');
+  console.log('Start Claude Code or Cursor in your project to see agents! 🎮\n');
 }
 
-// Setup hooks only (extracted for reuse)
-function setupHooks() {
-  // Ensure .claude directory exists
+// Setup Claude Code hooks
+function setupClaudeHooks() {
   const claudeDir = path.join(TARGET_DIR, '.claude');
   if (!fs.existsSync(claudeDir)) {
     fs.mkdirSync(claudeDir, { recursive: true });
   }
 
-  // Read or create settings.local.json
   const settingsPath = path.join(claudeDir, 'settings.local.json');
   let settings = {};
 
@@ -181,9 +200,37 @@ function setupHooks() {
   );
   settings.permissions.allow.push(...permissionsConfig.permissions.allow);
 
-  // Write settings
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-  console.log('✓ Configured .claude/settings.local.json');
+  console.log('✓ Configured .claude/settings.local.json (Claude Code)');
+}
+
+// Setup Cursor hooks
+function setupCursorHooks() {
+  const cursorDir = path.join(TARGET_DIR, '.cursor');
+  if (!fs.existsSync(cursorDir)) {
+    fs.mkdirSync(cursorDir, { recursive: true });
+  }
+
+  const hooksPath = path.join(cursorDir, 'hooks.json');
+  fs.writeFileSync(hooksPath, JSON.stringify(cursorHooksConfig, null, 2));
+  console.log('✓ Configured .cursor/hooks.json (Cursor)');
+}
+
+// Setup hooks for ALL detected tools
+function setupHooks() {
+  // Always setup Claude Code (it's our primary target)
+  setupClaudeHooks();
+
+  // Also setup Cursor (universal support)
+  setupCursorHooks();
+
+  // Make hooks executable
+  try {
+    fs.chmodSync(FILE_HOOK, '755');
+    fs.chmodSync(THINKING_HOOK, '755');
+  } catch (e) {
+    // Ignore chmod errors
+  }
 }
 
 function setup() {
