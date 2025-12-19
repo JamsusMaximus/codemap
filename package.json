@@ -1,0 +1,28 @@
+{
+  "name": "codemap-hotel",
+  "version": "1.0.0",
+  "description": "Visualize Claude Code agents as characters in a pixel-art hotel room",
+  "type": "module",
+  "bin": {
+    "codemap-hotel": "./bin/setup.js"
+  },
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build": "npm run build --workspace=server && npm run build --workspace=client",
+    "setup": "node bin/setup.js setup",
+    "start": "node bin/setup.js start"
+  },
+  "keywords": ["claude", "claude-code", "visualization", "agents", "pixel-art"],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/codemap-hotel"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  }
+}

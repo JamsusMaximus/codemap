@@ -1,0 +1,82 @@
+// Main App component - CodeMap visualization application
+// Provides two views: Tree (force graph) and Hotel (isometric room)
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { FileGraph } from './components/FileGraph';
+import { ActivityLegend } from './components/ActivityLegend';
+import { HabboRoom } from './components/HabboRoom';
+
+// TreeView - Shows files as a force-directed graph
+function TreeView() {
+  return (
+    <div style={{
+      width: '100vw',
+      height: '100vh',
+      backgroundColor: '#1f2937',
+      overflow: 'hidden',
+      position: 'relative'
+    }}>
+      <FileGraph />
+      <ActivityLegend />
+      <NavLinks />
+    </div>
+  );
+}
+
+// NavLinks - Navigation buttons to switch between Tree and Hotel views
+function NavLinks() {
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 16,
+      right: 16,
+      zIndex: 20,
+      display: 'flex',
+      gap: 8
+    }}>
+      <Link to="/" style={navLinkStyle}>Tree</Link>
+      <Link to="/hotel" style={navLinkStyle}>Hotel</Link>
+    </div>
+  );
+}
+
+const navLinkStyle: React.CSSProperties = {
+  color: '#e5e7eb',
+  textDecoration: 'none',
+  padding: '8px 16px',
+  backgroundColor: 'rgba(17, 24, 39, 0.9)',
+  borderRadius: '6px',
+  fontSize: '13px',
+  border: '1px solid rgba(255, 255, 255, 0.1)'
+};
+
+// HotelView - Shows files as desks in an isometric hotel room with animated agents
+function HotelView() {
+  return (
+    <>
+      <HabboRoom />
+      <div style={{
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        zIndex: 20,
+        display: 'flex',
+        gap: 8
+      }}>
+        <Link to="/" style={navLinkStyle}>Tree</Link>
+        <Link to="/hotel" style={navLinkStyle}>Hotel</Link>
+      </div>
+    </>
+  );
+}
+
+// App - Main routing component
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<TreeView />} />
+        <Route path="/hotel" element={<HotelView />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build output
+dist/
+client/dist/
+server/dist/
+
+# Vite cache
+.vite/
+client/.vite/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Playwright screenshots (development)
+.playwright-mcp/
+
+# Lock files (optional - uncomment if you want to track them)
+# package-lock.json
