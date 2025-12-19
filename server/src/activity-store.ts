@@ -238,4 +238,46 @@ export class ActivityStore {
       activityCount: { reads: 0, writes: 0 }
     });
   }
+
+  /**
+   * Get recently active files grouped by folder
+   * Returns files that have been read/written in the last N minutes
+   */
+  getRecentlyActiveFiles(maxAgeMs: number = 10 * 60 * 1000): Map<string, string[]> {
+    const now = Date.now();
+    const folderFiles = new Map<string, { file: string; timestamp: number }[]>();
+
+    for (const node of this.nodes.values()) {
+      // Skip folders, only want files
+      if (node.isFolder) continue;
+
+      // Check if file has recent activity
+      if (node.lastActivity && (now - node.lastActivity.timestamp) < maxAgeMs) {
+        const folderPath = path.dirname(node.id);
+        const relativeFolderPath = path.relative(this.projectRoot, folderPath);
+        const folderKey = relativeFolderPath || '.';
+
+        if (!folderFiles.has(folderKey)) {
+          folderFiles.set(folderKey, []);
+        }
+        folderFiles.get(folderKey)!.push({
+          file: node.name,
+          timestamp: node.lastActivity.timestamp
+        });
+      }
+    }
+
+    // Sort by timestamp (most recent first) and extract just filenames
+    const result = new Map<string, string[]>();
+    for (const [folder, files] of folderFiles) {
+      files.sort((a, b) => b.timestamp - a.timestamp);
+      result.set(folder, files.map(f => f.file));
+    }
+
+    return result;
+  }
+
+  getProjectRoot(): string {
+    return this.projectRoot;
+  }
 }

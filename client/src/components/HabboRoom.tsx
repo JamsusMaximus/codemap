@@ -377,15 +377,28 @@ export function HabboRoom() {
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    // Fetch hot folders on mount
-    fetch(`${API_URL}/hot-folders?limit=${FLOOR_CONFIG.reduce((sum, cfg) => sum + cfg.rooms, 0)}`)
-      .then(res => res.json())
-      .then((data: FolderScore[]) => {
-        hotFoldersRef.current = data;
-        layoutRef.current = null;  // Force layout rebuild
-        layoutInitializedRef.current = false;
-      })
-      .catch(err => console.error('Failed to fetch hot folders:', err));
+    // Fetch hot folders - includes git history + live activity
+    const fetchHotFolders = () => {
+      fetch(`${API_URL}/hot-folders?limit=${FLOOR_CONFIG.reduce((sum, cfg) => sum + cfg.rooms, 0)}`)
+        .then(res => res.json())
+        .then((data: FolderScore[]) => {
+          // Check if data actually changed to avoid unnecessary rebuilds
+          const oldJson = JSON.stringify(hotFoldersRef.current.map(f => ({ folder: f.folder, files: f.recentFiles })));
+          const newJson = JSON.stringify(data.map(f => ({ folder: f.folder, files: f.recentFiles })));
+          if (oldJson !== newJson) {
+            hotFoldersRef.current = data;
+            layoutRef.current = null;  // Force layout rebuild
+            layoutInitializedRef.current = false;
+          }
+        })
+        .catch(err => console.error('Failed to fetch hot folders:', err));
+    };
+
+    // Fetch on mount
+    fetchHotFolders();
+
+    // Refresh every 5 seconds to pick up live file activity
+    const hotFoldersInterval = setInterval(fetchHotFolders, 5000);
 
     let running = true;
     let frame = 0;
@@ -925,6 +938,7 @@ export function HabboRoom() {
 
     return () => {
       running = false;
+      clearInterval(hotFoldersInterval);
       window.removeEventListener('resize', resize);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);

@@ -209,12 +209,47 @@ app.get('/api/graph', (_req, res) => {
   res.json(activityStore.getGraphData());
 });
 
-// Get hot folders based on git history
+// Get hot folders based on git history + live activity
 app.get('/api/hot-folders', async (req, res) => {
   const limit = parseInt(req.query.limit as string) || 50;
   try {
+    // Get git-based hot folders
     const hotFolders = await getHotFolders(PROJECT_ROOT, limit);
-    res.json(hotFolders);
+
+    // Get recently active files from live activity (last 10 minutes)
+    const recentlyActive = activityStore.getRecentlyActiveFiles(10 * 60 * 1000);
+
+    // Merge live activity into hot folders - prioritize recent files
+    for (const folder of hotFolders) {
+      const liveFiles = recentlyActive.get(folder.folder);
+      if (liveFiles && liveFiles.length > 0) {
+        // Prepend live files, remove duplicates, keep max 8
+        const existingSet = new Set(folder.recentFiles);
+        const merged = [...liveFiles];
+        for (const file of folder.recentFiles) {
+          if (!merged.includes(file)) {
+            merged.push(file);
+          }
+        }
+        folder.recentFiles = merged.slice(0, 8);
+      }
+    }
+
+    // Also add any folders with live activity that aren't in git history
+    for (const [folderPath, files] of recentlyActive) {
+      if (!hotFolders.find(f => f.folder === folderPath)) {
+        hotFolders.push({
+          folder: folderPath,
+          score: files.length * 10, // Give live folders a decent score
+          recentFiles: files.slice(0, 8)
+        });
+      }
+    }
+
+    // Re-sort by score (git activity + boost for live activity)
+    hotFolders.sort((a, b) => b.score - a.score);
+
+    res.json(hotFolders.slice(0, limit));
   } catch (error) {
     console.error('Error getting hot folders:', error);
     res.status(500).json({ error: 'Failed to get hot folders' });
