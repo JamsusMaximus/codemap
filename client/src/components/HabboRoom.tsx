@@ -61,6 +61,13 @@ export function HabboRoom() {
   // Room activity tracking for pulse effect
   const roomActivityRef = useRef<Map<string, number>>(new Map());  // roomName -> lastActivityTimestamp
 
+  // Zoom and pan state
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const lastDragPosRef = useRef({ x: 0, y: 0 });
+  const keysDownRef = useRef<Set<string>>(new Set());
+
   // Build layout - generates rooms from folder structure + adds lobby
   const buildLayout = (nodes: GraphNode[]): RoomLayout | null => {
     if (nodes.length === 0) return null;
@@ -305,6 +312,14 @@ export function HabboRoom() {
       const now = performance.now();
       frame++;
 
+      // Arrow key panning (smooth, runs every frame)
+      const panSpeed = 8;
+      const keys = keysDownRef.current;
+      if (keys.has('ArrowLeft')) panRef.current.x += panSpeed;
+      if (keys.has('ArrowRight')) panRef.current.x -= panSpeed;
+      if (keys.has('ArrowUp')) panRef.current.y += panSpeed;
+      if (keys.has('ArrowDown')) panRef.current.y -= panSpeed;
+
       // === SYNC AGENTS (replaces useEffect) ===
       if (thinkingVersionRef.current !== lastThinkingVersionRef.current) {
         lastThinkingVersionRef.current = thinkingVersionRef.current;
@@ -517,11 +532,22 @@ export function HabboRoom() {
         const totalSceneW = hotelW + (borderSize * 2 + waterWidth) * TILE_SIZE;
         const totalSceneH = hotelH + borderSize * 2 * TILE_SIZE;
 
-        const offsetX = (canvas.width - totalSceneW) / 2 + borderSize * TILE_SIZE;
-        const offsetY = (canvas.height - totalSceneH) / 2 + borderSize * TILE_SIZE;
+        const baseOffsetX = (canvas.width - totalSceneW) / 2 + borderSize * TILE_SIZE;
+        const baseOffsetY = (canvas.height - totalSceneH) / 2 + borderSize * TILE_SIZE;
+
+        // Apply zoom (centered on canvas) and pan transforms
+        const zoom = zoomRef.current;
+        const pan = panRef.current;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
 
         ctx.save();
-        ctx.translate(offsetX - layout.x * TILE_SIZE, offsetY - layout.y * TILE_SIZE);
+        // Translate to center, scale, translate back - this zooms from center
+        ctx.translate(centerX, centerY);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-centerX + pan.x, -centerY + pan.y);
+        // Apply the base offset to position the hotel
+        ctx.translate(baseOffsetX - layout.x * TILE_SIZE, baseOffsetY - layout.y * TILE_SIZE);
 
         const hotelPxX = layout.x * TILE_SIZE;
         const hotelPxY = layout.y * TILE_SIZE;
@@ -602,6 +628,33 @@ export function HabboRoom() {
         ctx.fillText('Waiting for file activity...', canvas.width / 2, canvas.height / 2);
       }
 
+      // Draw zoom indicator when zoomed or panned
+      const zoom = zoomRef.current;
+      const pan = panRef.current;
+      const hasPan = Math.abs(pan.x) > 1 || Math.abs(pan.y) > 1;
+      if (zoom !== 1 || hasPan) {
+        const indicatorX = canvas.width - 90;
+        const indicatorY = 20;
+
+        // Background
+        ctx.fillStyle = 'rgba(255, 252, 248, 0.9)';
+        ctx.fillRect(indicatorX - 8, indicatorY - 4, 82, 24);
+        ctx.strokeStyle = 'rgba(160, 150, 140, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(indicatorX - 8, indicatorY - 4, 82, 24);
+
+        // Zoom text
+        ctx.fillStyle = '#4A5A6A';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`🔍 ${Math.round(zoom * 100)}%`, indicatorX, indicatorY + 12);
+
+        // Reset hint
+        ctx.fillStyle = 'rgba(100, 120, 140, 0.6)';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('⌘0 reset | drag/←→↑↓', indicatorX - 6, indicatorY + 34);
+      }
+
       animationRef.current = requestAnimationFrame(render);
     };
 
@@ -611,11 +664,99 @@ export function HabboRoom() {
     };
     resize();
     window.addEventListener('resize', resize);
+
+    // Zoom with mouse wheel (zooms toward mouse position)
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomSpeed = 0.1;
+      const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+      const oldZoom = zoomRef.current;
+      const newZoom = Math.max(0.5, Math.min(4, oldZoom + delta));
+
+      if (newZoom !== oldZoom) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Convert mouse position to be relative to canvas center
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const mouseFromCenterX = mouseX - centerX;
+        const mouseFromCenterY = mouseY - centerY;
+
+        // Adjust pan to keep point under mouse stationary
+        const zoomRatio = newZoom / oldZoom;
+        panRef.current.x -= mouseFromCenterX * (zoomRatio - 1) / newZoom;
+        panRef.current.y -= mouseFromCenterY * (zoomRatio - 1) / newZoom;
+
+        zoomRef.current = newZoom;
+      }
+    };
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+    // Keyboard controls
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Zoom with Cmd/Ctrl + / -
+      if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        zoomRef.current = Math.min(4, zoomRef.current + 0.25);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === '-') {
+        e.preventDefault();
+        zoomRef.current = Math.max(0.5, zoomRef.current - 0.25);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+        e.preventDefault();
+        zoomRef.current = 1;
+        panRef.current = { x: 0, y: 0 };
+      }
+      // Track arrow keys for smooth panning
+      if (e.key.startsWith('Arrow')) {
+        e.preventDefault();
+        keysDownRef.current.add(e.key);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keysDownRef.current.delete(e.key);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    // Drag to pan
+    const handleMouseDown = (e: MouseEvent) => {
+      isDraggingRef.current = true;
+      lastDragPosRef.current = { x: e.clientX, y: e.clientY };
+      canvas.style.cursor = 'grabbing';
+    };
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDraggingRef.current) {
+        const dx = e.clientX - lastDragPosRef.current.x;
+        const dy = e.clientY - lastDragPosRef.current.y;
+        panRef.current.x += dx / zoomRef.current;
+        panRef.current.y += dy / zoomRef.current;
+        lastDragPosRef.current = { x: e.clientX, y: e.clientY };
+      }
+    };
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      canvas.style.cursor = 'grab';
+    };
+    canvas.style.cursor = 'grab';
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('mouseleave', handleMouseUp);
+
     render();
 
     return () => {
       running = false;
       window.removeEventListener('resize', resize);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      canvas.removeEventListener('wheel', handleWheel);
+      canvas.removeEventListener('mousedown', handleMouseDown);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('mouseup', handleMouseUp);
+      canvas.removeEventListener('mouseleave', handleMouseUp);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
