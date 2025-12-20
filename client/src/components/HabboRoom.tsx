@@ -720,6 +720,12 @@ export function HabboRoom() {
           y: baseOffsetY - layout.y * TILE_SIZE
         };
 
+        // Apply zoom (centered on canvas) and pan transforms
+        const zoom = zoomRef.current;
+        const pan = panRef.current;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
         // Agent tracking mode - smoothly follow the tracked agent
         if (trackedAgentIdRef.current) {
           const trackedAgent = agentCharactersRef.current.get(trackedAgentIdRef.current);
@@ -732,13 +738,13 @@ export function HabboRoom() {
               zoomRef.current = trackingZoom;
             }
 
-            // Calculate where agent is in world coordinates
-            const agentWorldX = trackedAgent.x + baseOffsetsRef.current.x;
-            const agentWorldY = trackedAgent.y + baseOffsetsRef.current.y;
-
-            // Calculate pan to center agent on screen
-            const targetPanX = canvas.width / 2 / zoomRef.current - agentWorldX + canvas.width / 2;
-            const targetPanY = canvas.height / 2 / zoomRef.current - agentWorldY + canvas.height / 2;
+            // To center agent on screen, we need:
+            // screenCenter = (agentPos + baseOffsets - canvasCenter + pan) * zoom + canvasCenter
+            // Solving for pan when screenCenter = canvasCenter:
+            // 0 = (agentPos + baseOffsets - canvasCenter + pan) * zoom
+            // pan = canvasCenter - agentPos - baseOffsets
+            const targetPanX = centerX - trackedAgent.x - baseOffsetsRef.current.x;
+            const targetPanY = centerY - trackedAgent.y - baseOffsetsRef.current.y;
 
             // Smooth pan towards target
             panRef.current.x += (targetPanX - panRef.current.x) * 0.08;
@@ -748,12 +754,6 @@ export function HabboRoom() {
             trackedAgentIdRef.current = null;
           }
         }
-
-        // Apply zoom (centered on canvas) and pan transforms
-        const zoom = zoomRef.current;
-        const pan = panRef.current;
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
 
         ctx.save();
         // Translate to center, scale, translate back - this zooms from center
@@ -1074,7 +1074,6 @@ export function HabboRoom() {
         // Exit agent tracking mode
         if (trackedAgentIdRef.current) {
           trackedAgentIdRef.current = null;
-          console.log('Exited agent tracking mode (Escape)');
         }
       }
       // Track arrow keys for smooth panning
@@ -1129,17 +1128,6 @@ export function HabboRoom() {
       const worldX = (screenX - centerX) / zoom + centerX - pan.x - baseOffsets.x;
       const worldY = (screenY - centerY) / zoom + centerY - pan.y - baseOffsets.y;
 
-      console.log('Click debug:', {
-        screen: { x: screenX, y: screenY },
-        world: { x: worldX, y: worldY },
-        zoom, pan, baseOffsets,
-        agents: Array.from(agentCharactersRef.current.entries()).map(([id, c]) => ({
-          id: id.slice(0, 8),
-          name: c.displayName,
-          pos: { x: c.x, y: c.y }
-        }))
-      });
-
       // Check if click is on any agent (agents are ~30x50 pixels at scale 1.5)
       const agentHitRadius = 40; // Generous hit area for easier clicking
       let clickedAgentId: string | null = null;
@@ -1158,14 +1146,9 @@ export function HabboRoom() {
       if (clickedAgentId) {
         // Start tracking this agent
         trackedAgentIdRef.current = clickedAgentId;
-        const agent = agentCharactersRef.current.get(clickedAgentId);
-        if (agent) {
-          console.log(`Tracking agent: ${agent.displayName}`);
-        }
       } else if (trackedAgentIdRef.current) {
         // Clicked elsewhere while tracking - exit tracking mode
         trackedAgentIdRef.current = null;
-        console.log('Exited agent tracking mode');
       }
     };
     canvas.addEventListener('click', handleClick);
