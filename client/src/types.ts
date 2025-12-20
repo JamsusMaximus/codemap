@@ -1,7 +1,7 @@
 // File activity event from Claude Code hooks
 export interface FileActivityEvent {
-  type: 'read-start' | 'read-end' | 'write-start' | 'write-end';
-  filePath: string;
+  type: 'read-start' | 'read-end' | 'write-start' | 'write-end' | 'search-start' | 'search-end';
+  filePath: string;  // For search: this is the search pattern (glob or regex)
   agentId?: string;  // Which agent triggered this activity
   timestamp: number;
 }
@@ -27,13 +27,14 @@ export interface GraphNode {
   isFolder: boolean;
   depth: number;
   lastActivity?: {
-    type: 'read' | 'write';
+    type: 'read' | 'write' | 'search';
     timestamp: number;
   };
-  activeOperation?: 'read' | 'write';
+  activeOperation?: 'read' | 'write' | 'search';
   activityCount: {
     reads: number;
     writes: number;
+    searches: number;
   };
 }
 

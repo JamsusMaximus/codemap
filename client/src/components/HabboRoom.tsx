@@ -568,6 +568,45 @@ export function HabboRoom() {
             playWriteSound();
           }
 
+          // Handle search flashes - pattern format is "searchPath:pattern"
+          if (recentActivity.type === 'search-end') {
+            const colonIndex = recentActivity.filePath.indexOf(':');
+            if (colonIndex > 0) {
+              const searchPath = recentActivity.filePath.slice(0, colonIndex);
+              const pattern = recentActivity.filePath.slice(colonIndex + 1);
+
+              // Convert glob pattern to regex (basic conversion)
+              const regexPattern = pattern
+                .replace(/\*\*/g, '.*')  // ** matches anything including /
+                .replace(/\*/g, '[^/]*')  // * matches anything except /
+                .replace(/\?/g, '.');     // ? matches single character
+
+              try {
+                const regex = new RegExp(regexPattern, 'i');
+
+                // Flash all matching files
+                for (const fileId of filePositionsRef.current.keys()) {
+                  // Check if file matches the pattern
+                  const fileName = fileId.split('/').pop() || fileId;
+                  if (regex.test(fileName) || regex.test(fileId)) {
+                    // Also check if it's in the search path
+                    const inSearchPath = searchPath === '.' ||
+                                         searchPath === '' ||
+                                         fileId.includes(searchPath.replace(/^\.\//, ''));
+                    if (inSearchPath) {
+                      screenFlashesRef.current.set(fileId, {
+                        type: 'search',
+                        startTime: now
+                      });
+                    }
+                  }
+                }
+              } catch {
+                // Invalid regex, skip
+              }
+            }
+          }
+
           // Move agents on ALL activity events (both start and end)
           // This ensures agents run to files on reads AND writes
           const agentId = recentActivity.agentId;
@@ -778,21 +817,34 @@ export function HabboRoom() {
         // Draw outdoor environment
         drawOutdoor(ctx, hotelPxX, hotelPxY, hotelW, hotelH, frame);
 
-        // Initialize or reposition agents
+        // Initialize or reposition agents - NEVER teleport, only update target
         if (agentCharactersRef.current.size > 0) {
           let index = 0;
           for (const [, char] of agentCharactersRef.current) {
-            const isOutsideBounds = char.x < hotelPxX - TILE_SIZE * 2 ||
-                                   char.x > hotelPxX + hotelW + TILE_SIZE * 2 ||
-                                   char.y < hotelPxY - TILE_SIZE * 2 ||
-                                   char.y > hotelPxY + hotelH + TILE_SIZE * 4;
+            const lobbyX = (layout.x + layout.width / 2 - 2 + (index % 4) * 2) * TILE_SIZE;
+            const lobbyY = (layout.y + layout.height - 4 - Math.floor(index / 4) * 2) * TILE_SIZE;
 
-            if (!layoutInitializedRef.current || isOutsideBounds) {
-              char.x = (layout.x + layout.width / 2 - 2 + (index % 4) * 2) * TILE_SIZE;
-              char.y = (layout.y + layout.height - 4 - Math.floor(index / 4) * 2) * TILE_SIZE;
-              char.targetX = char.x;
-              char.targetY = char.y;
+            // Check if agent has never been positioned (new agent or first layout)
+            const isUninitialized = char.x === 0 && char.y === 0 && !char.isMoving;
+
+            // Check if agent is way outside bounds (safety check for broken positions)
+            const isOutsideBounds = char.x < hotelPxX - TILE_SIZE * 10 ||
+                                   char.x > hotelPxX + hotelW + TILE_SIZE * 10 ||
+                                   char.y < hotelPxY - TILE_SIZE * 10 ||
+                                   char.y > hotelPxY + hotelH + TILE_SIZE * 10;
+
+            if (isUninitialized) {
+              // Only teleport brand new agents to lobby
+              char.x = lobbyX;
+              char.y = lobbyY;
+              char.targetX = lobbyX;
+              char.targetY = lobbyY;
               char.isMoving = false;
+            } else if (!layoutInitializedRef.current || isOutsideBounds) {
+              // Layout changed or agent out of bounds - walk to lobby, don't teleport
+              char.targetX = lobbyX;
+              char.targetY = lobbyY;
+              char.isMoving = true;
             }
             index++;
           }

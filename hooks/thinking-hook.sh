@@ -45,5 +45,30 @@ fi
     --max-time 2 \
     >/dev/null 2>&1 &
 
+# For Grep/Glob tools, also send a search activity event
+if [ "$TOOL_NAME" = "Grep" ] || [ "$TOOL_NAME" = "Glob" ]; then
+    # Extract pattern for search visualization
+    SEARCH_PATTERN=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.pattern // empty' 2>/dev/null)
+    SEARCH_PATH=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.path // "." // empty' 2>/dev/null)
+
+    if [ -n "$SEARCH_PATTERN" ]; then
+        ACTIVITY_URL="http://localhost:5174/api/activity"
+        SEARCH_EVENT_TYPE="search-start"
+        if [ "$EVENT_TYPE" = "thinking-start" ]; then
+            SEARCH_EVENT_TYPE="search-end"
+        fi
+        FILE_PATH="${SEARCH_PATH}:${SEARCH_PATTERN}"
+
+        echo "$(date): [$SOURCE] FILE $SEARCH_EVENT_TYPE agent=${AGENT_ID:0:8} file=$(basename "$FILE_PATH" 2>/dev/null)" >> "$LOG_FILE"
+
+        /usr/bin/curl -s -X POST "$ACTIVITY_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"type\":\"$SEARCH_EVENT_TYPE\",\"filePath\":\"$FILE_PATH\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000)}" \
+            --connect-timeout 1 \
+            --max-time 2 \
+            >/dev/null 2>&1 &
+    fi
+fi
+
 # Always exit successfully to not block Claude Code
 exit 0

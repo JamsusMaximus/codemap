@@ -231,7 +231,8 @@ app.post('/api/activity', (req, res) => {
 
       // Update current command and thinking state based on activity type
       if (event.type.endsWith('-start')) {
-        state.currentCommand = event.type.startsWith('read') ? 'Read' : 'Write';
+        state.currentCommand = event.type.startsWith('read') ? 'Read' :
+                               event.type.startsWith('write') ? 'Write' : 'Grep';
         state.isThinking = true;
       } else if (event.type.endsWith('-end')) {
         // Keep command visible but mark as not actively thinking

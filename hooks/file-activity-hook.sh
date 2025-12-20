@@ -22,6 +22,14 @@ fi
 # Claude: .tool_input.file_path, Cursor: .file_path
 FILE_PATH=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.file_path // .file_path // empty' 2>/dev/null)
 
+# For search events (Grep/Glob), extract the pattern instead
+if [[ "$EVENT_TYPE" == search-* ]]; then
+    # Grep: .tool_input.pattern, Glob: .tool_input.pattern
+    SEARCH_PATTERN=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.pattern // empty' 2>/dev/null)
+    SEARCH_PATH=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.path // "." // empty' 2>/dev/null)
+    FILE_PATH="${SEARCH_PATH}:${SEARCH_PATTERN}"
+fi
+
 # UNIVERSAL: Extract tool name
 TOOL_NAME=$(echo "$INPUT" | /usr/bin/jq -r '.tool_name // .hook_event_name // empty' 2>/dev/null)
 

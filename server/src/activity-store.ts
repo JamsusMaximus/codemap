@@ -18,7 +18,7 @@ export class ActivityStore {
       name: path.basename(projectRoot),
       isFolder: true,
       depth: -1, // Root is at depth -1
-      activityCount: { reads: 0, writes: 0 }
+      activityCount: { reads: 0, writes: 0, searches: 0 }
     });
     // Scan directory on startup
     this.scanDirectory(projectRoot);
@@ -68,7 +68,7 @@ export class ActivityStore {
           name: parts[i],
           isFolder: true,
           depth: i,
-          activityCount: { reads: 0, writes: 0 }
+          activityCount: { reads: 0, writes: 0, searches: 0 }
         });
       }
     }
@@ -80,7 +80,7 @@ export class ActivityStore {
         name: path.basename(filePath),
         isFolder,
         depth,
-        activityCount: { reads: 0, writes: 0 }
+        activityCount: { reads: 0, writes: 0, searches: 0 }
       });
       console.log(`[${new Date().toISOString()}] File added: ${relativePath}`);
       this.notifyChange();
@@ -133,7 +133,7 @@ export class ActivityStore {
           name: entry.name,
           isFolder,
           depth,
-          activityCount: { reads: 0, writes: 0 }
+          activityCount: { reads: 0, writes: 0, searches: 0 }
         });
 
         if (isFolder) {
@@ -146,6 +146,12 @@ export class ActivityStore {
   }
 
   addActivity(event: FileActivityEvent): GraphData {
+    // Search events contain patterns, not file paths - just return current state
+    // The client will handle pattern matching and visual feedback
+    if (event.type.startsWith('search')) {
+      return this.getGraphData();
+    }
+
     const relativePath = path.relative(this.projectRoot, event.filePath);
 
     // Skip files outside project root
@@ -167,7 +173,7 @@ export class ActivityStore {
           name: parts[i],
           isFolder: !isFile,
           depth: i,
-          activityCount: { reads: 0, writes: 0 }
+          activityCount: { reads: 0, writes: 0, searches: 0 }
         });
       }
 
@@ -235,7 +241,7 @@ export class ActivityStore {
       name: path.basename(this.projectRoot),
       isFolder: true,
       depth: -1,
-      activityCount: { reads: 0, writes: 0 }
+      activityCount: { reads: 0, writes: 0, searches: 0 }
     });
   }
 

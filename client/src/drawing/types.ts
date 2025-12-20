@@ -47,7 +47,7 @@ export interface FileLayout {
 }
 
 export interface ScreenFlash {
-  type: 'read' | 'write';
+  type: 'read' | 'write' | 'search';
   startTime: number;
 }
 
