@@ -6,6 +6,7 @@ import { FileGraph } from './components/FileGraph';
 import { ActivityLegend } from './components/ActivityLegend';
 import { HabboRoom } from './components/HabboRoom';
 import { getMuted, setMuted } from './sounds';
+import { getChristmasMode, toggleChristmasMode } from './christmas';
 
 // Mute button component
 function MuteButton() {
@@ -28,6 +29,30 @@ function MuteButton() {
       title={muted ? 'Unmute sounds' : 'Mute sounds'}
     >
       {muted ? 'Muted' : 'Sound'}
+    </button>
+  );
+}
+
+// Christmas mode toggle button
+function ChristmasButton() {
+  const [christmas, setChristmas] = useState(getChristmasMode());
+
+  const toggle = () => {
+    const newState = toggleChristmasMode();
+    setChristmas(newState);
+  };
+
+  return (
+    <button
+      onClick={toggle}
+      style={{
+        ...navLinkStyle,
+        cursor: 'pointer',
+        background: christmas ? 'rgba(34, 139, 34, 0.9)' : 'rgba(17, 24, 39, 0.9)',
+      }}
+      title={christmas ? 'Disable christmas mode' : 'Enable christmas mode'}
+    >
+      {christmas ? '🎄' : '❄️'}
     </button>
   );
 }
@@ -94,6 +119,7 @@ function HotelView() {
       }}>
         <Link to="/" style={navLinkStyle}>Tree</Link>
         <Link to="/hotel" style={navLinkStyle}>Hotel</Link>
+        <ChristmasButton />
         <MuteButton />
       </div>
     </>

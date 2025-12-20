@@ -174,12 +174,151 @@ const drawTree = (
   }
 };
 
+// Draw a pixel-art snowman
+const drawSnowman = (
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number,
+  _frame: number
+) => {
+  // Shadow
+  ctx.fillStyle = 'rgba(100, 100, 150, 0.2)';
+  ctx.beginPath();
+  ctx.ellipse(x + 12, y + 38, 16, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bottom snowball
+  ctx.fillStyle = '#F0F0F0';
+  ctx.beginPath();
+  ctx.arc(x + 12, y + 30, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#E0E0E0';
+  ctx.beginPath();
+  ctx.arc(x + 16, y + 32, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Middle snowball
+  ctx.fillStyle = '#F8F8F8';
+  ctx.beginPath();
+  ctx.arc(x + 12, y + 14, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#E8E8E8';
+  ctx.beginPath();
+  ctx.arc(x + 15, y + 16, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head snowball
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.arc(x + 12, y + 0, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#F0F0F0';
+  ctx.beginPath();
+  ctx.arc(x + 14, y + 2, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes (coal)
+  ctx.fillStyle = '#222222';
+  ctx.beginPath();
+  ctx.arc(x + 9, y - 2, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 15, y - 2, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Carrot nose
+  ctx.fillStyle = '#FF8C00';
+  ctx.beginPath();
+  ctx.moveTo(x + 12, y + 1);
+  ctx.lineTo(x + 20, y + 2);
+  ctx.lineTo(x + 12, y + 3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Smile (coal dots)
+  ctx.fillStyle = '#222222';
+  for (let i = 0; i < 5; i++) {
+    const angle = (Math.PI * 0.2) + (i * Math.PI * 0.15);
+    const smileX = x + 12 + Math.cos(angle) * 5;
+    const smileY = y + 4 + Math.sin(angle) * 3;
+    ctx.beginPath();
+    ctx.arc(smileX, smileY, 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Hat
+  ctx.fillStyle = '#2C2C2C';
+  ctx.fillRect(x + 5, y - 8, 14, 3);
+  ctx.fillRect(x + 7, y - 18, 10, 10);
+  ctx.fillStyle = '#1A1A1A';
+  ctx.fillRect(x + 8, y - 17, 8, 2);
+  // Hat band
+  ctx.fillStyle = '#CC2020';
+  ctx.fillRect(x + 7, y - 11, 10, 2);
+
+  // Stick arms
+  ctx.strokeStyle = '#5D4037';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - 2, y + 14);
+  ctx.lineTo(x - 12, y + 8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 26, y + 14);
+  ctx.lineTo(x + 36, y + 10);
+  ctx.stroke();
+
+  // Stick fingers
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x - 12, y + 8);
+  ctx.lineTo(x - 15, y + 5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - 12, y + 8);
+  ctx.lineTo(x - 14, y + 10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 36, y + 10);
+  ctx.lineTo(x + 39, y + 7);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 36, y + 10);
+  ctx.lineTo(x + 38, y + 12);
+  ctx.stroke();
+
+  // Buttons
+  ctx.fillStyle = '#222222';
+  ctx.beginPath();
+  ctx.arc(x + 12, y + 11, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 12, y + 17, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+// Draw snow pile
+const drawSnowPile = (
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number,
+  size: number
+) => {
+  ctx.fillStyle = '#F5F5F5';
+  ctx.beginPath();
+  ctx.ellipse(x, y, size * 1.5, size * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#E8E8E8';
+  ctx.beginPath();
+  ctx.ellipse(x + size * 0.3, y + size * 0.1, size * 1.2, size * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+};
+
 // Draw the outdoor environment
 export const drawOutdoor = (
   ctx: CanvasRenderingContext2D,
   hotelX: number, hotelY: number,
   hotelW: number, hotelH: number,
-  frame: number
+  frame: number,
+  christmas: boolean = false
 ) => {
   const borderSize = 4;
   const waterWidth = 6;
@@ -219,6 +358,19 @@ export const drawOutdoor = (
   ];
 
   treePositions.forEach(pos => drawTree(ctx, pos.x, pos.y, pos.type, pos.seed, frame));
+
+  // Christmas decorations - snowman and snow piles
+  if (christmas) {
+    // Snowman near the entrance on the left
+    drawSnowman(ctx, startX + TILE_SIZE * 1, startY + totalH - TILE_SIZE * 6, frame);
+
+    // Snow piles scattered around the grass
+    drawSnowPile(ctx, startX + TILE_SIZE * 3, startY + TILE_SIZE * 3, 12);
+    drawSnowPile(ctx, startX + TILE_SIZE * 0.8, startY + TILE_SIZE * 7, 10);
+    drawSnowPile(ctx, hotelX + hotelW + TILE_SIZE * 1, startY + TILE_SIZE * 5, 14);
+    drawSnowPile(ctx, hotelX + hotelW + TILE_SIZE * 2.5, startY + totalH - TILE_SIZE * 5, 11);
+    drawSnowPile(ctx, startX + TILE_SIZE * 2, startY + TILE_SIZE * 0.5, 8);
+  }
 
   // Water edge foam
   const foamX = hotelX + hotelW + borderSize * TILE_SIZE;

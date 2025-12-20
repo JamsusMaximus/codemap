@@ -2,8 +2,42 @@
 import { AgentCharacter } from './types';
 import { CHARACTER_PALETTES, SKIN, OUTLINE } from './palette';
 
+// Draw a pixel-art santa hat
+const drawSantaHat = (ctx: CanvasRenderingContext2D, headTop: number, frame: number) => {
+  const hatY = headTop - 8;
+
+  // Hat base (red)
+  ctx.fillStyle = '#CC2020';
+  ctx.fillRect(-7, hatY + 4, 14, 6);
+  ctx.fillRect(-6, hatY + 2, 12, 3);
+  ctx.fillRect(-4, hatY, 8, 3);
+  ctx.fillRect(-2, hatY - 2, 4, 3);
+
+  // Hat darker shade
+  ctx.fillStyle = '#A01818';
+  ctx.fillRect(4, hatY + 3, 3, 5);
+  ctx.fillRect(2, hatY + 1, 2, 3);
+
+  // White trim at bottom
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(-8, hatY + 9, 16, 3);
+  ctx.fillStyle = '#E8E8E8';
+  ctx.fillRect(-8, hatY + 11, 16, 1);
+
+  // Pom-pom with subtle bounce
+  const bounce = Math.sin(frame * 0.08) * 1;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.arc(0, hatY - 4 + bounce, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#E0E0E0';
+  ctx.beginPath();
+  ctx.arc(1, hatY - 3 + bounce, 1, 0, Math.PI * 2);
+  ctx.fill();
+};
+
 // Draw a single agent character with animations
-export const drawAgentCharacter = (ctx: CanvasRenderingContext2D, char: AgentCharacter) => {
+export const drawAgentCharacter = (ctx: CanvasRenderingContext2D, char: AgentCharacter, christmas: boolean = false) => {
   const cx = char.x;
   const jumpOffset = char.waitingForInput ? Math.abs(Math.sin(char.frame * 0.15)) * 8 : 0;
   const cy = char.y - jumpOffset;
@@ -77,7 +111,11 @@ export const drawAgentCharacter = (ctx: CanvasRenderingContext2D, char: AgentCha
 
   // Head - hair
   const hairStyle = char.colorIndex % 5;
-  ctx.fillStyle = palette.hair.dark;
+  // White hair for Santa look in christmas mode
+  const hairDark = christmas ? '#E8E8E8' : palette.hair.dark;
+  const hairMid = christmas ? '#F0F0F0' : palette.hair.mid;
+  const hairLight = christmas ? '#FFFFFF' : palette.hair.light;
+  ctx.fillStyle = hairDark;
 
   if (hairStyle === 0) {
     ctx.fillRect(-7, headTop, 14, 12);
@@ -104,9 +142,9 @@ export const drawAgentCharacter = (ctx: CanvasRenderingContext2D, char: AgentCha
     ctx.fillRect(4, headTop - 1, 4, 5);
   }
 
-  ctx.fillStyle = palette.hair.mid;
+  ctx.fillStyle = hairMid;
   ctx.fillRect(-5, headTop + 3, 10, 7);
-  ctx.fillStyle = palette.hair.light;
+  ctx.fillStyle = hairLight;
   ctx.fillRect(-3, headTop + 3, 4, 2);
 
   // Face
@@ -116,7 +154,7 @@ export const drawAgentCharacter = (ctx: CanvasRenderingContext2D, char: AgentCha
   ctx.fillRect(3, headTop + 7, 2, 7);
 
   // Bangs
-  ctx.fillStyle = palette.hair.mid;
+  ctx.fillStyle = hairMid;
   if (hairStyle === 1) {
     ctx.fillRect(-5, headTop + 5, 8, 2);
     ctx.fillRect(-6, headTop + 6, 3, 2);
@@ -144,11 +182,32 @@ export const drawAgentCharacter = (ctx: CanvasRenderingContext2D, char: AgentCha
   ctx.fillStyle = SKIN.shadow;
   ctx.fillRect(-1, headTop + 13, 2, 1);
 
+  // Santa beard (when christmas mode enabled, drawn before outline)
+  if (christmas) {
+    // White fluffy beard
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(-5, headTop + 12, 10, 4); // Main beard
+    ctx.fillRect(-4, headTop + 16, 8, 2);  // Lower beard
+    ctx.fillRect(-3, headTop + 18, 6, 2);  // Beard tip
+    ctx.fillRect(-2, headTop + 20, 4, 1);  // Final point
+    // Shadow for depth
+    ctx.fillStyle = '#E0E0E0';
+    ctx.fillRect(2, headTop + 13, 3, 3);
+    ctx.fillRect(1, headTop + 16, 3, 2);
+  }
+
   // Outline
   ctx.fillStyle = OUTLINE;
   ctx.fillRect(-6, headTop + 5, 1, 10);
   ctx.fillRect(5, headTop + 5, 1, 10);
-  ctx.fillRect(-5, headTop + 15, 10, 1);
+  if (!christmas) {
+    ctx.fillRect(-5, headTop + 15, 10, 1);
+  }
+
+  // Santa hat (when christmas mode enabled)
+  if (christmas) {
+    drawSantaHat(ctx, headTop, char.frame);
+  }
 
   ctx.restore();
 

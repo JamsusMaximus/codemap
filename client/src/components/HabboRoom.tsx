@@ -3,6 +3,7 @@ import { useFileActivity } from '../hooks/useFileActivity';
 import { GraphNode, FolderScore } from '../types';
 import { playReadSound, playWriteSound, playWaitingSound, initAudio } from '../sounds';
 import { findMatchingFileId } from '../utils/screen-flash';
+import { getChristmasMode } from '../christmas';
 
 const API_URL = 'http://localhost:5174/api';
 
@@ -49,7 +50,6 @@ export function HabboRoom() {
     graphDataRef,
     recentActivityRef,
     thinkingAgentsRef,
-    activityHistoryRef,
     activityVersionRef,
     thinkingVersionRef,
     connectionStatusRef
@@ -71,6 +71,10 @@ export function HabboRoom() {
   const lastThinkingVersionRef = useRef(0);
   const hotFoldersRef = useRef<FolderScore[]>([]);
   const prevAgentCommandsRef = useRef<Map<string, string | undefined>>(new Map());
+
+  // Christmas mode
+  const christmasModeRef = useRef(getChristmasMode());
+  const snowflakesRef = useRef<Array<{ x: number; y: number; vx: number; vy: number; size: number; opacity: number }>>([]);
 
   // Agent trails - stores recent footprint positions
   const agentTrailsRef = useRef<Array<{
@@ -846,7 +850,7 @@ export function HabboRoom() {
         };
 
         // Draw outdoor environment
-        drawOutdoor(ctx, hotelPxX, hotelPxY, hotelW, hotelH, frame);
+        drawOutdoor(ctx, hotelPxX, hotelPxY, hotelW, hotelH, frame, christmasModeRef.current);
 
         // Initialize or reposition agents - NEVER teleport, only update target
         if (agentCharactersRef.current.size > 0) {
@@ -914,8 +918,9 @@ export function HabboRoom() {
         ctx.globalAlpha = 1;
 
         // Draw all agent characters
+        const isChristmas = christmasModeRef.current;
         for (const [, char] of agentCharactersRef.current) {
-          drawAgentCharacter(ctx, char);
+          drawAgentCharacter(ctx, char, isChristmas);
         }
 
         ctx.restore();
@@ -1018,6 +1023,60 @@ export function HabboRoom() {
           ctx.font = '10px monospace';
           ctx.fillText('Click elsewhere or ESC to exit', trackingX, trackingY + 34);
         }
+      }
+
+      // Check christmas mode (poll from global state each frame)
+      christmasModeRef.current = getChristmasMode();
+
+      // Draw snow particles when christmas mode is enabled
+      if (christmasModeRef.current) {
+        const snowflakes = snowflakesRef.current;
+
+        // Initialize snowflakes if needed
+        if (snowflakes.length === 0) {
+          for (let i = 0; i < 200; i++) {
+            snowflakes.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              vx: (Math.random() - 0.5) * 0.5,
+              vy: 0.5 + Math.random() * 1.5,
+              size: 1 + Math.random() * 3,
+              opacity: 0.3 + Math.random() * 0.7
+            });
+          }
+        }
+
+        // Update and draw snowflakes
+        for (const flake of snowflakes) {
+          // Update position
+          flake.x += flake.vx + Math.sin(frame * 0.02 + flake.y * 0.01) * 0.3;
+          flake.y += flake.vy;
+
+          // Wrap around screen
+          if (flake.y > canvas.height + 10) {
+            flake.y = -10;
+            flake.x = Math.random() * canvas.width;
+          }
+          if (flake.x < -10) flake.x = canvas.width + 10;
+          if (flake.x > canvas.width + 10) flake.x = -10;
+
+          // Draw snowflake
+          ctx.fillStyle = `rgba(255, 255, 255, ${flake.opacity})`;
+          ctx.beginPath();
+          ctx.arc(flake.x, flake.y, flake.size, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Small sparkle highlight
+          if (flake.size > 2) {
+            ctx.fillStyle = `rgba(255, 255, 255, ${flake.opacity * 0.5})`;
+            ctx.beginPath();
+            ctx.arc(flake.x - flake.size * 0.3, flake.y - flake.size * 0.3, flake.size * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else {
+        // Clear snowflakes when christmas mode is disabled
+        snowflakesRef.current = [];
       }
 
       animationRef.current = requestAnimationFrame(render);
