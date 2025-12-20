@@ -1,0 +1,29 @@
+{
+  "savedAt": 1766188807016,
+  "agents": [
+    {
+      "agentId": "f40e4487-1190-4735-a4bf-60595189f12c",
+      "source": "claude",
+      "isThinking": true,
+      "lastActivity": 1766188743499,
+      "displayName": "Claude 1",
+      "currentCommand": "Bash",
+      "waitingForInput": false
+    },
+    {
+      "agentId": "a7982537-1d1e-44cd-80b9-9dded8e3236e",
+      "source": "claude",
+      "isThinking": false,
+      "lastActivity": 1766188796928,
+      "displayName": "Claude 2",
+      "currentCommand": "Read",
+      "waitingForInput": false
+    }
+  ],
+  "agentCounter": 0,
+  "agentCounterBySource": {
+    "claude": 2,
+    "cursor": 0,
+    "unknown": 0
+  }
+}

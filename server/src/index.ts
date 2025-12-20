@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { createServer } from 'http';
 import { WebSocketManager } from './websocket.js';
 import { ActivityStore } from './activity-store.js';
@@ -58,6 +59,57 @@ const AGENT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_AGENTS = 10; // HARD LIMIT - never allow more than this
 const AGENT_CREATION_COOLDOWN_MS = 500; // Minimum time between new agent registrations
 let lastAgentCreationTime = 0;
+
+// Debug/observability tracking
+const SERVER_START_TIME = Date.now();
+const recentActivityBuffer: Array<{ type: string; filePath: string; agentId?: string; timestamp: number }> = [];
+const MAX_ACTIVITY_BUFFER = 50;
+
+// Agent state persistence
+const STATE_FILE = path.join(PROJECT_ROOT, '.codemap-state.json');
+
+function saveAgentState(): void {
+  try {
+    const state = {
+      savedAt: Date.now(),
+      agents: Array.from(agentStates.values()),
+      agentCounter,
+      agentCounterBySource,
+    };
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+  } catch (err) {
+    console.error('Failed to save agent state:', err);
+  }
+}
+
+function loadAgentState(): void {
+  try {
+    if (fs.existsSync(STATE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(STATE_FILE, 'utf-8'));
+      const now = Date.now();
+
+      // Only restore agents that haven't timed out
+      for (const agent of data.agents || []) {
+        if (now - agent.lastActivity < AGENT_TIMEOUT_MS) {
+          agentStates.set(agent.agentId, agent);
+        }
+      }
+
+      // Restore counters
+      if (data.agentCounter) agentCounter = data.agentCounter;
+      if (data.agentCounterBySource) {
+        Object.assign(agentCounterBySource, data.agentCounterBySource);
+      }
+
+      console.log(`[${new Date().toISOString()}] Restored ${agentStates.size} agents from state file`);
+    }
+  } catch (err) {
+    console.error('Failed to load agent state:', err);
+  }
+}
+
+// Save state every 30 seconds
+setInterval(saveAgentState, 30000);
 
 // Validate agent ID format - must be a valid UUID (session_id format)
 function isValidAgentId(id: string): boolean {
@@ -157,12 +209,25 @@ app.post('/api/activity', (req, res) => {
   const event: FileActivityEvent = req.body;
   console.log(`[${new Date().toISOString()}] ${event.type.toUpperCase()}: ${event.filePath}${event.agentId ? ` (${event.agentId.slice(0, 8)})` : ''}`);
 
+  // Track in debug buffer
+  recentActivityBuffer.push({
+    type: event.type,
+    filePath: toRelativePath(event.filePath),
+    agentId: event.agentId,
+    timestamp: Date.now()
+  });
+  if (recentActivityBuffer.length > MAX_ACTIVITY_BUFFER) {
+    recentActivityBuffer.shift();
+  }
+
   // Register or get existing agent using safe registration
   if (event.agentId) {
-    const state = registerAgent(event.agentId, event.timestamp, 'activity', event.source || 'unknown');
+    const now = Date.now();
+    const state = registerAgent(event.agentId, now, 'activity', event.source || 'unknown');
     if (state) {
       // Always update last activity timestamp to keep agent alive
-      state.lastActivity = event.timestamp;
+      // Use server time (Date.now()), not hook timestamp which can be stale
+      state.lastActivity = now;
 
       // Update current command and thinking state based on activity type
       if (event.type.endsWith('-start')) {
@@ -194,10 +259,11 @@ app.post('/api/activity', (req, res) => {
 // Receive thinking events
 app.post('/api/thinking', (req, res) => {
   const event: ThinkingEvent = req.body;
-  const { agentId, type, timestamp, toolName } = event;
+  const { agentId, type, toolName } = event;
+  const now = Date.now();
 
   // Register or get existing agent using safe registration
-  const state = registerAgent(agentId, timestamp, 'thinking', event.source || 'unknown');
+  const state = registerAgent(agentId, now, 'thinking', event.source || 'unknown');
   if (!state) {
     // Agent registration was rejected - still return success to not block hooks
     res.status(200).json({ success: true, rejected: true });
@@ -205,7 +271,8 @@ app.post('/api/thinking', (req, res) => {
   }
 
   state.isThinking = type === 'thinking-start';
-  state.lastActivity = timestamp;
+  // Use server time (Date.now()), not hook timestamp which can be stale
+  state.lastActivity = now;
 
   // Update current command on BOTH events:
   // - thinking-end (PreToolUse): tool is STARTING - set command so we show it during execution
@@ -297,12 +364,45 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Debug endpoint - comprehensive system state for troubleshooting
+app.get('/api/debug', (_req, res) => {
+  const now = Date.now();
+  res.json({
+    server: {
+      uptime: Math.floor((now - SERVER_START_TIME) / 1000),
+      uptimeFormatted: `${Math.floor((now - SERVER_START_TIME) / 60000)}m ${Math.floor(((now - SERVER_START_TIME) % 60000) / 1000)}s`,
+      projectRoot: PROJECT_ROOT,
+      wsClients: wsManager.getClientCount(),
+    },
+    agents: Array.from(agentStates.values()).map(agent => ({
+      ...agent,
+      agentId: agent.agentId.slice(0, 8) + '...', // Truncate for readability
+      lastActivityAgo: `${Math.floor((now - agent.lastActivity) / 1000)}s ago`,
+      willTimeoutIn: `${Math.floor((AGENT_TIMEOUT_MS - (now - agent.lastActivity)) / 1000)}s`,
+    })),
+    agentCount: agentStates.size,
+    maxAgents: MAX_AGENTS,
+    recentActivity: recentActivityBuffer.slice(-20).map(a => ({
+      ...a,
+      agentId: a.agentId ? a.agentId.slice(0, 8) + '...' : undefined,
+      ago: `${Math.floor((now - a.timestamp) / 1000)}s ago`,
+    })),
+    config: {
+      agentTimeoutMs: AGENT_TIMEOUT_MS,
+      agentCreationCooldownMs: AGENT_CREATION_COOLDOWN_MS,
+    }
+  });
+});
+
 // Clear graph
 app.post('/api/clear', (_req, res) => {
   activityStore.clear();
   wsManager.broadcast('graph', activityStore.getGraphData());
   res.json({ success: true });
 });
+
+// Load persisted state before starting server
+loadAgentState();
 
 server.listen(PORT, () => {
   console.log(`
@@ -311,5 +411,6 @@ server.listen(PORT, () => {
   HTTP:      http://localhost:${PORT}
   WebSocket: ws://localhost:${PORT}/ws
   Project:   ${PROJECT_ROOT}
+  Agents:    ${agentStates.size} restored
   `);
 });

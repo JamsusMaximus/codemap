@@ -4,6 +4,8 @@ import { GraphData, FileActivityEvent, AgentThinkingState } from '../types';
 const WS_URL = 'ws://localhost:5174/ws';
 const API_URL = 'http://localhost:5174/api';
 
+export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+
 // Ref-based hook that NEVER triggers React re-renders
 // All data is stored in refs and read directly by the animation loop
 export function useFileActivity(): {
@@ -12,6 +14,7 @@ export function useFileActivity(): {
   thinkingAgentsRef: MutableRefObject<AgentThinkingState[]>;
   activityVersionRef: MutableRefObject<number>;
   thinkingVersionRef: MutableRefObject<number>;
+  connectionStatusRef: MutableRefObject<ConnectionStatus>;
   clearGraph: () => void;
 } {
   const graphDataRef = useRef<GraphData>({ nodes: [], links: [] });
@@ -20,11 +23,15 @@ export function useFileActivity(): {
   // Version counters to detect changes without re-rendering
   const activityVersionRef = useRef(0);
   const thinkingVersionRef = useRef(0);
+  // Connection status for UI indicator
+  const connectionStatusRef = useRef<ConnectionStatus>('connecting');
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number>();
 
   const connect = useCallback(() => {
+    connectionStatusRef.current = 'connecting';
+
     // Fetch initial graph state
     fetch(`${API_URL}/graph`)
       .then(res => res.json())
@@ -48,16 +55,19 @@ export function useFileActivity(): {
 
     ws.onopen = () => {
       console.log('WebSocket connected');
+      connectionStatusRef.current = 'connected';
     };
 
     ws.onclose = () => {
       console.log('WebSocket disconnected');
+      connectionStatusRef.current = 'disconnected';
       // Reconnect after 2 seconds
       reconnectTimeoutRef.current = window.setTimeout(connect, 2000);
     };
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
+      connectionStatusRef.current = 'disconnected';
     };
 
     ws.onmessage = (event) => {
@@ -102,6 +112,7 @@ export function useFileActivity(): {
     thinkingAgentsRef,
     activityVersionRef,
     thinkingVersionRef,
+    connectionStatusRef,
     clearGraph
   };
 }

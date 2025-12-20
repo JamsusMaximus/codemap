@@ -50,7 +50,8 @@ export function HabboRoom() {
     recentActivityRef,
     thinkingAgentsRef,
     activityVersionRef,
-    thinkingVersionRef
+    thinkingVersionRef,
+    connectionStatusRef
   } = useFileActivity();
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -570,10 +571,17 @@ export function HabboRoom() {
                 timestamp: Date.now()
               });
 
-              // Try file path first, then parent folders
-              let filePos = filePositionsRef.current.get(recentActivity.filePath);
+              // Use same matching logic as screen flash for consistency
+              // This ensures agent goes to same desk that lights up
+              let filePos: { x: number; y: number } | undefined;
+
+              // First try to find the exact file using priority-based matching
+              if (matchingFileId) {
+                filePos = filePositionsRef.current.get(matchingFileId);
+              }
+
+              // Fall back to folder-based routing if file not in layout
               if (!filePos) {
-                // Extract folder path and try to find matching room
                 const pathParts = recentActivity.filePath.split('/');
                 pathParts.pop(); // Remove filename
                 while (pathParts.length > 0 && !filePos) {
@@ -806,7 +814,7 @@ export function HabboRoom() {
 
       // Background
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(metricsX - 6, metricsY - 12, 130, 62);
+      ctx.fillRect(metricsX - 6, metricsY - 12, 130, 76);
 
       // Text
       ctx.fillStyle = fps >= 55 ? '#4ADE80' : fps >= 30 ? '#FACC15' : '#F87171';
@@ -819,6 +827,13 @@ export function HabboRoom() {
       ctx.fillText(`Frame: ${avgFrameTime}ms`, metricsX, metricsY + 14);
       ctx.fillText(`Agents: ${agentCount}`, metricsX, metricsY + 28);
       ctx.fillText(`Rooms: ${roomCount}`, metricsX, metricsY + 42);
+
+      // Connection status
+      const connStatus = connectionStatusRef.current;
+      const connColor = connStatus === 'connected' ? '#4ADE80' :
+                        connStatus === 'connecting' ? '#FACC15' : '#F87171';
+      ctx.fillStyle = connColor;
+      ctx.fillText(`● ${connStatus}`, metricsX, metricsY + 56);
 
       // Draw zoom indicator when zoomed or panned
       const zoom = zoomRef.current;
