@@ -4,7 +4,7 @@ export const SCREEN_GLOW_HOLD = 5000;    // 5 seconds at full glow
 export const SCREEN_FADE_DURATION = 3000; // 3 second fade out after hold
 
 export interface ScreenFlash {
-  type: 'read' | 'write' | 'search';
+  type: 'read' | 'write' | 'search' | 'bash';
   startTime: number;
 }
 

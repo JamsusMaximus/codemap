@@ -81,7 +81,7 @@ export const drawDesk = (
   // Check for fading flash (5s hold + 3s fade) - uses tested utility functions
   const flash = screenFlashes.get(file.id);
   let flashOpacity = 0;
-  let flashType: 'read' | 'write' | 'search' | null = null;
+  let flashType: 'read' | 'write' | 'search' | 'bash' | null = null;
   if (flash) {
     if (isFlashExpired(flash, now)) {
       screenFlashes.delete(file.id);
@@ -109,7 +109,7 @@ export const drawDesk = (
   } else if (flashOpacity > 0) {
     const alpha = 0.3 * flashOpacity;
     const glowColor = flashType === 'write' ? `rgba(50, 255, 50, ${alpha})` :
-                      flashType === 'search' ? `rgba(255, 255, 255, ${alpha})` :
+                      (flashType === 'search' || flashType === 'bash') ? `rgba(255, 255, 255, ${alpha})` :
                       `rgba(255, 230, 50, ${alpha})`;
     ctx.fillStyle = glowColor;
     ctx.fillRect(monX - 8, monY - 8, monW + 16, monH + 16);
@@ -128,8 +128,8 @@ export const drawDesk = (
       const g = Math.round(255 * flashOpacity + darkG * (1 - flashOpacity));
       const b = Math.round(64 * flashOpacity + darkB * (1 - flashOpacity));
       ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    } else if (flashType === 'search') {
-      // White for searches (Grep/Glob/Bash)
+    } else if (flashType === 'search' || flashType === 'bash') {
+      // White for searches (Grep/Glob) and Bash commands
       const r = Math.round(255 * flashOpacity + darkR * (1 - flashOpacity));
       const g = Math.round(255 * flashOpacity + darkG * (1 - flashOpacity));
       const b = Math.round(255 * flashOpacity + darkB * (1 - flashOpacity));

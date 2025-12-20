@@ -70,6 +70,7 @@ export function HabboRoom() {
   const lastActivityVersionRef = useRef(0);
   const lastThinkingVersionRef = useRef(0);
   const hotFoldersRef = useRef<FolderScore[]>([]);
+  const prevAgentCommandsRef = useRef<Map<string, string | undefined>>(new Map());
 
   // Agent trails - stores recent footprint positions
   const agentTrailsRef = useRef<Array<{
@@ -535,6 +536,24 @@ export function HabboRoom() {
             console.log(`Removing agent ${agent.displayName} after ${AGENT_GRACE_PERIOD_MS / 1000}s grace period`);
             agents.delete(id);
           }
+        }
+
+        // Detect Bash command starts and flash all screens white
+        for (const agent of validAgents) {
+          const prevCommand = prevAgentCommandsRef.current.get(agent.agentId);
+          const currCommand = agent.currentCommand;
+
+          // If command just changed TO Bash, flash all screens
+          if (currCommand === 'Bash' && prevCommand !== 'Bash' && agent.isThinking) {
+            for (const fileId of filePositionsRef.current.keys()) {
+              screenFlashesRef.current.set(fileId, {
+                type: 'bash',
+                startTime: now
+              });
+            }
+          }
+
+          prevAgentCommandsRef.current.set(agent.agentId, currCommand);
         }
       }
 
