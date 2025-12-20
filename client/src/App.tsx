@@ -70,11 +70,13 @@ function NavLinks() {
 const navLinkStyle: React.CSSProperties = {
   color: '#e5e7eb',
   textDecoration: 'none',
-  padding: '8px 16px',
-  backgroundColor: 'rgba(17, 24, 39, 0.9)',
-  borderRadius: '6px',
-  fontSize: '13px',
-  border: '1px solid rgba(255, 255, 255, 0.1)'
+  padding: '10px 20px',
+  backgroundColor: 'rgba(17, 24, 39, 0.95)',
+  borderRadius: '8px',
+  fontSize: '14px',
+  fontWeight: 500,
+  border: '1px solid rgba(255, 255, 255, 0.15)',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
 };
 
 // HotelView - Shows files as desks in an isometric hotel room with animated agents

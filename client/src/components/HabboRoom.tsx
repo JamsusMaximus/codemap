@@ -962,10 +962,10 @@ export function HabboRoom() {
       ctx.fillStyle = connColor;
       ctx.fillText(`● ${connStatus}`, metricsX, metricsY + 56);
 
-      // Draw activity feed on right side
+      // Draw activity feed on right side (below nav buttons)
       const feedWidth = 220;
       const feedX = canvas.width - feedWidth - 12;
-      const feedY = 58;
+      const feedY = 90; // Moved down to avoid overlapping nav buttons
       const feedEntryHeight = 24;
       const maxFeedEntries = Math.min(12, Math.floor((canvas.height - feedY - 80) / feedEntryHeight));
       const activityHistory = activityHistoryRef.current;
@@ -1043,31 +1043,28 @@ export function HabboRoom() {
         });
       }
 
-      // Draw zoom indicator when zoomed or panned
+      // Draw zoom indicator when zoomed or panned (below stats panel on left)
       const zoom = zoomRef.current;
       const pan = panRef.current;
       const hasPan = Math.abs(pan.x) > 1 || Math.abs(pan.y) > 1;
       if (zoom !== 1 || hasPan) {
-        const indicatorX = canvas.width - 90;
-        const indicatorY = 20;
+        const indicatorX = metricsX;
+        const indicatorY = metricsY + 74;
 
         // Background
-        ctx.fillStyle = 'rgba(255, 252, 248, 0.9)';
-        ctx.fillRect(indicatorX - 8, indicatorY - 4, 82, 24);
-        ctx.strokeStyle = 'rgba(160, 150, 140, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(indicatorX - 8, indicatorY - 4, 82, 24);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(indicatorX - 6, indicatorY - 4, 130, 36);
 
         // Zoom text
-        ctx.fillStyle = '#4A5A6A';
-        ctx.font = 'bold 12px sans-serif';
+        ctx.fillStyle = '#E5E5E5';
+        ctx.font = 'bold 11px monospace';
         ctx.textAlign = 'left';
-        ctx.fillText(`🔍 ${Math.round(zoom * 100)}%`, indicatorX, indicatorY + 12);
+        ctx.fillText(`Zoom: ${Math.round(zoom * 100)}%`, indicatorX, indicatorY + 10);
 
         // Reset hint
-        ctx.fillStyle = 'rgba(100, 120, 140, 0.6)';
-        ctx.font = '10px sans-serif';
-        ctx.fillText('⌘0 reset | drag/←→↑↓', indicatorX - 6, indicatorY + 34);
+        ctx.fillStyle = '#9CA3AF';
+        ctx.font = '10px monospace';
+        ctx.fillText('⌘0 reset', indicatorX, indicatorY + 24);
       }
 
       // Draw tracking indicator when following an agent
