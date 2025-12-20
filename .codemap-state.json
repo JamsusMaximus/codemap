@@ -1,20 +1,20 @@
 {
-  "savedAt": 1766189285816,
+  "savedAt": 1766189585845,
   "agents": [
     {
       "agentId": "f40e4487-1190-4735-a4bf-60595189f12c",
       "source": "claude",
-      "isThinking": false,
-      "lastActivity": 1766189264385,
+      "isThinking": true,
+      "lastActivity": 1766189584626,
       "displayName": "Claude 1",
-      "currentCommand": "Read",
+      "currentCommand": "Edit",
       "waitingForInput": false
     },
     {
       "agentId": "a7982537-1d1e-44cd-80b9-9dded8e3236e",
       "source": "claude",
-      "isThinking": true,
-      "lastActivity": 1766189285036,
+      "isThinking": false,
+      "lastActivity": 1766189492182,
       "displayName": "Claude 2",
       "currentCommand": "Bash",
       "waitingForInput": false,

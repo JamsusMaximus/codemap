@@ -92,6 +92,11 @@ export function HabboRoom() {
   const lastDragPosRef = useRef({ x: 0, y: 0 });
   const keysDownRef = useRef<Set<string>>(new Set());
 
+  // Agent tracking mode - follow a specific agent at full zoom
+  const trackedAgentIdRef = useRef<string | null>(null);
+  const trackingZoom = 3; // Zoom level when tracking
+  const baseOffsetsRef = useRef({ x: 0, y: 0 }); // Store base offsets for coordinate conversion
+
   // Build multi-floor layout from hot folders (pyramid structure)
   const buildLayout = (nodes: GraphNode[]): RoomLayout | null => {
     const hotFolders = hotFoldersRef.current;
@@ -709,6 +714,41 @@ export function HabboRoom() {
         const baseOffsetX = (canvas.width - totalSceneW) / 2 + borderSize * TILE_SIZE;
         const baseOffsetY = (canvas.height - totalSceneH) / 2 + borderSize * TILE_SIZE;
 
+        // Store base offsets for click detection
+        baseOffsetsRef.current = {
+          x: baseOffsetX - layout.x * TILE_SIZE,
+          y: baseOffsetY - layout.y * TILE_SIZE
+        };
+
+        // Agent tracking mode - smoothly follow the tracked agent
+        if (trackedAgentIdRef.current) {
+          const trackedAgent = agentCharactersRef.current.get(trackedAgentIdRef.current);
+          if (trackedAgent) {
+            // Smoothly transition to tracking zoom
+            const zoomDiff = trackingZoom - zoomRef.current;
+            if (Math.abs(zoomDiff) > 0.01) {
+              zoomRef.current += zoomDiff * 0.1;
+            } else {
+              zoomRef.current = trackingZoom;
+            }
+
+            // Calculate where agent is in world coordinates
+            const agentWorldX = trackedAgent.x + baseOffsetsRef.current.x;
+            const agentWorldY = trackedAgent.y + baseOffsetsRef.current.y;
+
+            // Calculate pan to center agent on screen
+            const targetPanX = canvas.width / 2 / zoomRef.current - agentWorldX + canvas.width / 2;
+            const targetPanY = canvas.height / 2 / zoomRef.current - agentWorldY + canvas.height / 2;
+
+            // Smooth pan towards target
+            panRef.current.x += (targetPanX - panRef.current.x) * 0.08;
+            panRef.current.y += (targetPanY - panRef.current.y) * 0.08;
+          } else {
+            // Tracked agent no longer exists, exit tracking mode
+            trackedAgentIdRef.current = null;
+          }
+        }
+
         // Apply zoom (centered on canvas) and pan transforms
         const zoom = zoomRef.current;
         const pan = panRef.current;
@@ -944,6 +984,39 @@ export function HabboRoom() {
         ctx.fillText('⌘0 reset | drag/←→↑↓', indicatorX - 6, indicatorY + 34);
       }
 
+      // Draw tracking indicator when following an agent
+      if (trackedAgentIdRef.current) {
+        const trackedAgent = agentCharactersRef.current.get(trackedAgentIdRef.current);
+        if (trackedAgent) {
+          const trackingY = canvas.height - 60;
+          const trackingX = canvas.width / 2;
+
+          // Background pill
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+          const pillWidth = 200;
+          const pillHeight = 44;
+          ctx.beginPath();
+          ctx.roundRect(trackingX - pillWidth / 2, trackingY, pillWidth, pillHeight, 22);
+          ctx.fill();
+
+          // Pulsing border
+          const pulseAlpha = 0.5 + Math.sin(frame * 0.1) * 0.3;
+          ctx.strokeStyle = `rgba(74, 222, 128, ${pulseAlpha})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Icon and text
+          ctx.fillStyle = '#4ADE80';
+          ctx.font = 'bold 13px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(`👁 Tracking: ${trackedAgent.displayName}`, trackingX, trackingY + 18);
+
+          ctx.fillStyle = '#9CA3AF';
+          ctx.font = '10px monospace';
+          ctx.fillText('Click elsewhere or ESC to exit', trackingX, trackingY + 34);
+        }
+      }
+
       animationRef.current = requestAnimationFrame(render);
     };
 
@@ -996,6 +1069,13 @@ export function HabboRoom() {
         e.preventDefault();
         zoomRef.current = 1;
         panRef.current = { x: 0, y: 0 };
+        trackedAgentIdRef.current = null; // Also exit tracking mode on reset
+      } else if (e.key === 'Escape') {
+        // Exit agent tracking mode
+        if (trackedAgentIdRef.current) {
+          trackedAgentIdRef.current = null;
+          console.log('Exited agent tracking mode (Escape)');
+        }
       }
       // Track arrow keys for smooth panning
       if (e.key.startsWith('Arrow')) {
@@ -1016,6 +1096,79 @@ export function HabboRoom() {
       lastDragPosRef.current = { x: e.clientX, y: e.clientY };
       canvas.style.cursor = 'grabbing';
     };
+
+    // Click to track agent
+    let mouseDownPos = { x: 0, y: 0 };
+    const handleMouseDownForClick = (e: MouseEvent) => {
+      mouseDownPos = { x: e.clientX, y: e.clientY };
+    };
+    canvas.addEventListener('mousedown', handleMouseDownForClick);
+
+    const handleClick = (e: MouseEvent) => {
+      // Ignore if this was a drag (mouse moved significantly from mousedown)
+      const dragThreshold = 10;
+      const dragDist = Math.abs(e.clientX - mouseDownPos.x) + Math.abs(e.clientY - mouseDownPos.y);
+      if (dragDist > dragThreshold) {
+        return; // This was a drag, not a click
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+
+      // Convert screen coordinates to world coordinates
+      const zoom = zoomRef.current;
+      const pan = panRef.current;
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const baseOffsets = baseOffsetsRef.current;
+
+      // Invert the transform chain:
+      // Forward: world -> +baseOffsets -> +(-center+pan) -> *zoom -> +center = screen
+      // Inverse: screen -> -center -> /zoom -> -(-center+pan) -> -baseOffsets = world
+      const worldX = (screenX - centerX) / zoom + centerX - pan.x - baseOffsets.x;
+      const worldY = (screenY - centerY) / zoom + centerY - pan.y - baseOffsets.y;
+
+      console.log('Click debug:', {
+        screen: { x: screenX, y: screenY },
+        world: { x: worldX, y: worldY },
+        zoom, pan, baseOffsets,
+        agents: Array.from(agentCharactersRef.current.entries()).map(([id, c]) => ({
+          id: id.slice(0, 8),
+          name: c.displayName,
+          pos: { x: c.x, y: c.y }
+        }))
+      });
+
+      // Check if click is on any agent (agents are ~30x50 pixels at scale 1.5)
+      const agentHitRadius = 40; // Generous hit area for easier clicking
+      let clickedAgentId: string | null = null;
+
+      for (const [agentId, char] of agentCharactersRef.current) {
+        const dx = worldX - char.x;
+        const dy = worldY - (char.y - 20); // Offset for agent center (head area)
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < agentHitRadius) {
+          clickedAgentId = agentId;
+          break;
+        }
+      }
+
+      if (clickedAgentId) {
+        // Start tracking this agent
+        trackedAgentIdRef.current = clickedAgentId;
+        const agent = agentCharactersRef.current.get(clickedAgentId);
+        if (agent) {
+          console.log(`Tracking agent: ${agent.displayName}`);
+        }
+      } else if (trackedAgentIdRef.current) {
+        // Clicked elsewhere while tracking - exit tracking mode
+        trackedAgentIdRef.current = null;
+        console.log('Exited agent tracking mode');
+      }
+    };
+    canvas.addEventListener('click', handleClick);
     const handleMouseMove = (e: MouseEvent) => {
       if (isDraggingRef.current) {
         const dx = e.clientX - lastDragPosRef.current.x;
@@ -1048,6 +1201,8 @@ export function HabboRoom() {
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mouseup', handleMouseUp);
       canvas.removeEventListener('mouseleave', handleMouseUp);
+      canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('mousedown', handleMouseDownForClick);
       if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
