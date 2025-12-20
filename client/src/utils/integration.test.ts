@@ -279,7 +279,7 @@ describe('CRITICAL: Screen Flash End-to-End Flow', () => {
     });
 
     it('extracts filename from absolute path', () => {
-      expect(extractFilename('/Users/james/code/codemap/client/src/App.tsx')).toBe('App.tsx');
+      expect(extractFilename('/home/user/project/client/src/App.tsx')).toBe('App.tsx');
     });
 
     it('handles edge cases', () => {
@@ -313,5 +313,128 @@ describe('CRITICAL: Agent Spawn Position', () => {
     // Each agent should have different position
     expect(spawn0.x).not.toBe(spawn1.x);
     expect(spawn1.x).not.toBe(spawn2.x);
+  });
+});
+
+/**
+ * CRITICAL TEST SUITE 8: Activity Feed Entry Creation
+ *
+ * Activity entries must be created correctly from events.
+ */
+describe('CRITICAL: Activity Feed Entry Creation', () => {
+  // Simulates the entry creation logic from useFileActivity
+  function createActivityEntry(
+    event: { type: string; filePath: string; agentId?: string; timestamp?: number },
+    agents: Array<{ agentId: string; displayName: string }>,
+    idCounter: number
+  ) {
+    // Only process -end events
+    if (!event.type.endsWith('-end')) {
+      return null;
+    }
+
+    const agent = agents.find(a => a.agentId === event.agentId);
+    const agentName = agent?.displayName || 'Unknown';
+    const fileName = event.filePath.split('/').pop() || event.filePath;
+
+    return {
+      id: idCounter,
+      type: event.type.startsWith('read') ? 'read' as const : 'write' as const,
+      filePath: event.filePath,
+      fileName,
+      agentName,
+      timestamp: event.timestamp || Date.now(),
+    };
+  }
+
+  describe('Event filtering', () => {
+    it('MUST only create entries for -end events', () => {
+      const agents = [{ agentId: 'abc123', displayName: 'Claude 1' }];
+
+      const readStart = createActivityEntry(
+        { type: 'read-start', filePath: 'test.ts', agentId: 'abc123' },
+        agents, 1
+      );
+      expect(readStart).toBeNull();
+
+      const readEnd = createActivityEntry(
+        { type: 'read-end', filePath: 'test.ts', agentId: 'abc123' },
+        agents, 1
+      );
+      expect(readEnd).not.toBeNull();
+    });
+
+    it('MUST correctly identify read vs write events', () => {
+      const agents = [{ agentId: 'abc123', displayName: 'Claude 1' }];
+
+      const readEntry = createActivityEntry(
+        { type: 'read-end', filePath: 'test.ts', agentId: 'abc123' },
+        agents, 1
+      );
+      expect(readEntry?.type).toBe('read');
+
+      const writeEntry = createActivityEntry(
+        { type: 'write-end', filePath: 'test.ts', agentId: 'abc123' },
+        agents, 1
+      );
+      expect(writeEntry?.type).toBe('write');
+    });
+  });
+
+  describe('Agent name resolution', () => {
+    it('MUST resolve agent display name from agents list', () => {
+      const agents = [
+        { agentId: 'agent-1', displayName: 'Claude 1' },
+        { agentId: 'agent-2', displayName: 'Cursor 1' },
+      ];
+
+      const entry = createActivityEntry(
+        { type: 'read-end', filePath: 'test.ts', agentId: 'agent-2' },
+        agents, 1
+      );
+      expect(entry?.agentName).toBe('Cursor 1');
+    });
+
+    it('MUST fall back to "Unknown" for unregistered agent', () => {
+      const agents = [{ agentId: 'known-agent', displayName: 'Claude 1' }];
+
+      const entry = createActivityEntry(
+        { type: 'read-end', filePath: 'test.ts', agentId: 'unknown-agent' },
+        agents, 1
+      );
+      expect(entry?.agentName).toBe('Unknown');
+    });
+
+    it('MUST handle missing agentId', () => {
+      const agents = [{ agentId: 'agent-1', displayName: 'Claude 1' }];
+
+      const entry = createActivityEntry(
+        { type: 'read-end', filePath: 'test.ts' },
+        agents, 1
+      );
+      expect(entry?.agentName).toBe('Unknown');
+    });
+  });
+
+  describe('Filename extraction', () => {
+    it('MUST extract filename from path', () => {
+      const agents: Array<{ agentId: string; displayName: string }> = [];
+
+      const entry = createActivityEntry(
+        { type: 'write-end', filePath: 'client/src/components/HabboRoom.tsx' },
+        agents, 1
+      );
+      expect(entry?.fileName).toBe('HabboRoom.tsx');
+    });
+
+    it('MUST handle root-level files', () => {
+      const agents: Array<{ agentId: string; displayName: string }> = [];
+
+      const entry = createActivityEntry(
+        { type: 'read-end', filePath: 'package.json' },
+        agents, 1
+      );
+      expect(entry?.fileName).toBe('package.json');
+    });
   });
 });

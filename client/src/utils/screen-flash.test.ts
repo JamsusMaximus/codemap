@@ -11,7 +11,7 @@ import {
 
 describe('extractFilename', () => {
   it('extracts filename from absolute path', () => {
-    expect(extractFilename('/Users/james/code/project/src/file.ts')).toBe('file.ts');
+    expect(extractFilename('/home/user/project/src/file.ts')).toBe('file.ts');
   });
 
   it('extracts filename from relative path', () => {

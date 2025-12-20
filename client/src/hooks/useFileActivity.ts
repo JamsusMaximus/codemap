@@ -3,8 +3,19 @@ import { GraphData, FileActivityEvent, AgentThinkingState } from '../types';
 
 const WS_URL = 'ws://localhost:5174/ws';
 const API_URL = 'http://localhost:5174/api';
+const MAX_ACTIVITY_HISTORY = 50;
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+
+// Enriched activity entry with display info for the feed
+export interface ActivityFeedEntry {
+  id: number;
+  type: 'read' | 'write';
+  filePath: string;
+  fileName: string;
+  agentName: string;
+  timestamp: number;
+}
 
 // Ref-based hook that NEVER triggers React re-renders
 // All data is stored in refs and read directly by the animation loop
@@ -12,6 +23,7 @@ export function useFileActivity(): {
   graphDataRef: MutableRefObject<GraphData>;
   recentActivityRef: MutableRefObject<FileActivityEvent | null>;
   thinkingAgentsRef: MutableRefObject<AgentThinkingState[]>;
+  activityHistoryRef: MutableRefObject<ActivityFeedEntry[]>;
   activityVersionRef: MutableRefObject<number>;
   thinkingVersionRef: MutableRefObject<number>;
   connectionStatusRef: MutableRefObject<ConnectionStatus>;
@@ -20,6 +32,8 @@ export function useFileActivity(): {
   const graphDataRef = useRef<GraphData>({ nodes: [], links: [] });
   const recentActivityRef = useRef<FileActivityEvent | null>(null);
   const thinkingAgentsRef = useRef<AgentThinkingState[]>([]);
+  const activityHistoryRef = useRef<ActivityFeedEntry[]>([]);
+  const activityIdCounterRef = useRef(0);
   // Version counters to detect changes without re-rendering
   const activityVersionRef = useRef(0);
   const thinkingVersionRef = useRef(0);
@@ -76,8 +90,34 @@ export function useFileActivity(): {
         if (message.type === 'graph') {
           graphDataRef.current = message.data;
         } else if (message.type === 'activity') {
-          recentActivityRef.current = message.data;
+          const event = message.data as FileActivityEvent;
+          recentActivityRef.current = event;
           activityVersionRef.current++;
+
+          // Only log end events to avoid duplicates (start+end for same action)
+          if (event.type.endsWith('-end')) {
+            // Find agent display name
+            const agent = thinkingAgentsRef.current.find(a => a.agentId === event.agentId);
+            const agentName = agent?.displayName || 'Unknown';
+
+            // Extract filename from path
+            const fileName = event.filePath.split('/').pop() || event.filePath;
+
+            // Add to history
+            const entry: ActivityFeedEntry = {
+              id: activityIdCounterRef.current++,
+              type: event.type.startsWith('read') ? 'read' : 'write',
+              filePath: event.filePath,
+              fileName,
+              agentName,
+              timestamp: event.timestamp || Date.now(),
+            };
+
+            activityHistoryRef.current = [
+              entry,
+              ...activityHistoryRef.current.slice(0, MAX_ACTIVITY_HISTORY - 1)
+            ];
+          }
         } else if (message.type === 'thinking') {
           thinkingAgentsRef.current = message.data as AgentThinkingState[];
           thinkingVersionRef.current++;
@@ -110,6 +150,7 @@ export function useFileActivity(): {
     graphDataRef,
     recentActivityRef,
     thinkingAgentsRef,
+    activityHistoryRef,
     activityVersionRef,
     thinkingVersionRef,
     connectionStatusRef,

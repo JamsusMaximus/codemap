@@ -281,7 +281,7 @@ app.post('/api/thinking', (req, res) => {
     state.currentCommand = toolName;
   }
 
-  // Set waitingForInput ONLY for AskUserQuestion tool
+  // Set waitingForInput for AskUserQuestion tool
   if (type === 'thinking-end' && toolName === 'AskUserQuestion') {
     state.waitingForInput = true;
     console.log(`[${new Date().toISOString()}] Agent ${state.displayName} waiting for user input (AskUserQuestion)`);

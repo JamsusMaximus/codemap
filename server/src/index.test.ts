@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 // Test the path conversion logic
 describe('toRelativePath', () => {
-  const PROJECT_ROOT = '/Users/james/code/codemap';
+  // Use a generic test path that works on any machine
+  const PROJECT_ROOT = '/home/user/myproject';
 
   function toRelativePath(absolutePath: string): string {
     // Must match PROJECT_ROOT exactly (followed by / or end of string)
@@ -17,34 +18,34 @@ describe('toRelativePath', () => {
   }
 
   it('converts absolute path to relative', () => {
-    expect(toRelativePath('/Users/james/code/codemap/client/src/App.tsx'))
+    expect(toRelativePath('/home/user/myproject/client/src/App.tsx'))
       .toBe('client/src/App.tsx');
   });
 
   it('converts nested folder path', () => {
-    expect(toRelativePath('/Users/james/code/codemap/server/src/index.ts'))
+    expect(toRelativePath('/home/user/myproject/server/src/index.ts'))
       .toBe('server/src/index.ts');
   });
 
   it('returns "." for project root itself', () => {
-    expect(toRelativePath('/Users/james/code/codemap')).toBe('.');
-    expect(toRelativePath('/Users/james/code/codemap/')).toBe('.');
+    expect(toRelativePath('/home/user/myproject')).toBe('.');
+    expect(toRelativePath('/home/user/myproject/')).toBe('.');
   });
 
   it('leaves paths outside project root unchanged', () => {
     expect(toRelativePath('/tmp/some-file.txt')).toBe('/tmp/some-file.txt');
-    expect(toRelativePath('/Users/other/project/file.ts'))
-      .toBe('/Users/other/project/file.ts');
+    expect(toRelativePath('/other/project/file.ts'))
+      .toBe('/other/project/file.ts');
   });
 
   it('handles paths with similar prefixes correctly', () => {
     // Edge case: path starts similarly but is different project
-    expect(toRelativePath('/Users/james/code/codemap-other/file.ts'))
-      .toBe('/Users/james/code/codemap-other/file.ts');
+    expect(toRelativePath('/home/user/myproject-other/file.ts'))
+      .toBe('/home/user/myproject-other/file.ts');
   });
 
   it('handles single file in root', () => {
-    expect(toRelativePath('/Users/james/code/codemap/package.json'))
+    expect(toRelativePath('/home/user/myproject/package.json'))
       .toBe('package.json');
   });
 });
@@ -228,7 +229,7 @@ describe('Folder name extraction', () => {
   });
 
   it('extracts folder name from absolute path', () => {
-    expect(extractFolderName('/Users/james/code/codemap/server/src/index.ts')).toBe('src');
+    expect(extractFolderName('/home/user/project/server/src/index.ts')).toBe('src');
   });
 
   it('returns null for root-level files', () => {

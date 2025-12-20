@@ -22,21 +22,22 @@ function toRelativePath(absolutePath: string, projectRoot: string): string {
 }
 
 describe('INTEGRATION: Path Conversion', () => {
-  const PROJECT_ROOT = '/Users/james/code/codemap';
+  // Use generic test paths that work on any machine
+  const PROJECT_ROOT = '/home/user/myproject';
 
   it('converts absolute file path to relative', () => {
-    const absolute = '/Users/james/code/codemap/client/src/App.tsx';
+    const absolute = '/home/user/myproject/client/src/App.tsx';
     const relative = toRelativePath(absolute, PROJECT_ROOT);
     expect(relative).toBe('client/src/App.tsx');
   });
 
   it('handles files with same name in different directories', () => {
     const clientIndex = toRelativePath(
-      '/Users/james/code/codemap/client/src/index.ts',
+      '/home/user/myproject/client/src/index.ts',
       PROJECT_ROOT
     );
     const serverIndex = toRelativePath(
-      '/Users/james/code/codemap/server/src/index.ts',
+      '/home/user/myproject/server/src/index.ts',
       PROJECT_ROOT
     );
 
@@ -189,7 +190,8 @@ describe('INTEGRATION: Activity Event Processing', () => {
     timestamp: number;
   }
 
-  const PROJECT_ROOT = '/Users/james/code/codemap';
+  // Use generic test paths that work on any machine
+  const PROJECT_ROOT = '/home/user/myproject';
 
   function processActivityEvent(event: ActivityEvent): {
     relativePath: string;
@@ -206,7 +208,7 @@ describe('INTEGRATION: Activity Event Processing', () => {
   it('processes read-start event correctly', () => {
     const event: ActivityEvent = {
       type: 'read-start',
-      filePath: '/Users/james/code/codemap/client/src/App.tsx',
+      filePath: '/home/user/myproject/client/src/App.tsx',
       agentId: 'a1234567-1234-5678-9abc-def012345678',
       timestamp: Date.now(),
     };
@@ -220,7 +222,7 @@ describe('INTEGRATION: Activity Event Processing', () => {
   it('processes write-end event correctly', () => {
     const event: ActivityEvent = {
       type: 'write-end',
-      filePath: '/Users/james/code/codemap/server/src/index.ts',
+      filePath: '/home/user/myproject/server/src/index.ts',
       timestamp: Date.now(),
     };
 
@@ -233,13 +235,13 @@ describe('INTEGRATION: Activity Event Processing', () => {
   it('maintains path distinction for same-named files', () => {
     const clientEvent: ActivityEvent = {
       type: 'read-start',
-      filePath: '/Users/james/code/codemap/client/src/index.ts',
+      filePath: '/home/user/myproject/client/src/index.ts',
       timestamp: Date.now(),
     };
 
     const serverEvent: ActivityEvent = {
       type: 'read-start',
-      filePath: '/Users/james/code/codemap/server/src/index.ts',
+      filePath: '/home/user/myproject/server/src/index.ts',
       timestamp: Date.now(),
     };
 
