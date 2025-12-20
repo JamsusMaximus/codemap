@@ -1,7 +1,21 @@
-// Agent source - which tool the agent is from
+/**
+ * Shared TypeScript Types
+ *
+ * These types are used across the server for:
+ * - Activity events from hooks (file read/write)
+ * - Thinking events from hooks (agent state)
+ * - Graph data for visualization (file tree)
+ *
+ * The client has its own copy of these types.
+ */
+
+/** Agent source - which tool the agent is from */
 export type AgentSource = 'claude' | 'cursor' | 'unknown';
 
-// Types for file activity tracking
+/**
+ * File activity event from file-activity-hook.sh
+ * Tracks when an agent reads or writes a file
+ */
 export interface FileActivityEvent {
   type: 'read-start' | 'read-end' | 'write-start' | 'write-end' | 'search-start' | 'search-end';
   filePath: string;  // For search: this is the search pattern (glob or regex)

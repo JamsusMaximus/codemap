@@ -575,34 +575,46 @@ export function HabboRoom() {
               const searchPath = recentActivity.filePath.slice(0, colonIndex);
               const pattern = recentActivity.filePath.slice(colonIndex + 1);
 
-              // Convert glob pattern to regex (basic conversion)
-              const regexPattern = pattern
-                .replace(/\*\*/g, '.*')  // ** matches anything including /
-                .replace(/\*/g, '[^/]*')  // * matches anything except /
-                .replace(/\?/g, '.');     // ? matches single character
+              // Determine if this is a glob pattern (filename match) or content search
+              const isGlobPattern = pattern.includes('*') || pattern.includes('?');
 
-              try {
-                const regex = new RegExp(regexPattern, 'i');
+              // Flash all files in the search path
+              for (const fileId of filePositionsRef.current.keys()) {
+                // Check if file is in the search path
+                const normalizedSearchPath = searchPath.replace(/^\.\//, '');
+                const inSearchPath = searchPath === '.' ||
+                                     searchPath === '' ||
+                                     normalizedSearchPath === '' ||
+                                     fileId.startsWith(normalizedSearchPath + '/') ||
+                                     fileId.startsWith(normalizedSearchPath);
 
-                // Flash all matching files
-                for (const fileId of filePositionsRef.current.keys()) {
-                  // Check if file matches the pattern
-                  const fileName = fileId.split('/').pop() || fileId;
-                  if (regex.test(fileName) || regex.test(fileId)) {
-                    // Also check if it's in the search path
-                    const inSearchPath = searchPath === '.' ||
-                                         searchPath === '' ||
-                                         fileId.includes(searchPath.replace(/^\.\//, ''));
-                    if (inSearchPath) {
-                      screenFlashesRef.current.set(fileId, {
-                        type: 'search',
-                        startTime: now
-                      });
+                if (inSearchPath) {
+                  // For glob patterns, also check if filename matches
+                  if (isGlobPattern) {
+                    try {
+                      const regexPattern = pattern
+                        .replace(/\*\*/g, '.*')
+                        .replace(/\*/g, '[^/]*')
+                        .replace(/\?/g, '.');
+                      const regex = new RegExp(regexPattern, 'i');
+                      const fileName = fileId.split('/').pop() || fileId;
+                      if (regex.test(fileName) || regex.test(fileId)) {
+                        screenFlashesRef.current.set(fileId, {
+                          type: 'search',
+                          startTime: now
+                        });
+                      }
+                    } catch {
+                      // Invalid regex, skip this file
                     }
+                  } else {
+                    // Content search (Grep) - flash all files in path
+                    screenFlashesRef.current.set(fileId, {
+                      type: 'search',
+                      startTime: now
+                    });
                   }
                 }
-              } catch {
-                // Invalid regex, skip
               }
             }
           }

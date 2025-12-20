@@ -232,6 +232,51 @@ codemap/
             └── useFileActivity.ts
 ```
 
+### Testing
+
+Run all tests:
+
+```bash
+# Run all tests (client + server)
+npm test --workspaces
+
+# Run client tests only
+npm test --workspace=client
+
+# Run server tests only
+npm test --workspace=server
+
+# Run tests in watch mode (client)
+npm run test --workspace=client
+
+# Run tests in watch mode (server)
+npm run test:watch --workspace=server
+```
+
+#### Test Coverage
+
+| Test File | What It Tests |
+|-----------|---------------|
+| `client/src/utils/screen-flash.test.ts` | Screen flash timing, path matching, opacity calculations |
+| `client/src/utils/agent-movement.test.ts` | Agent positioning, movement logic, idle detection, validation |
+| `client/src/utils/integration.test.ts` | End-to-end data flow: file paths → screen flashes → agent movement |
+| `server/src/index.test.ts` | Path conversion, relative path handling |
+| `server/src/integration.test.ts` | Server event processing, agent registration |
+
+#### Critical Integration Tests
+
+The `integration.test.ts` files verify the core data flow:
+
+```
+Hook Event → Server → Client → Visualization
+```
+
+These tests ensure:
+- File paths from hooks correctly match file IDs in the visualization
+- Agents spawn at the right locations when activity is detected
+- Screen flashes trigger on the correct desks
+- Agent movement and idle behavior work correctly
+
 ---
 
 ## License

@@ -1,10 +1,23 @@
-// Agent movement utilities - extracted for testability
+/**
+ * Agent Movement Utilities
+ *
+ * Core algorithms for agent positioning and movement in the visualization.
+ * These functions are pure and extracted for testability.
+ *
+ * Key concepts:
+ * - Agents have a current position (x, y) and a target position (targetX, targetY)
+ * - Movement is grid-based, prioritizing the larger axis
+ * - Agents go to "coffee shop" when idle for 30+ seconds
+ * - Multiple agents at same location are offset by colorIndex
+ */
 
+/** 2D position in pixel coordinates */
 export interface Position {
   x: number;
   y: number;
 }
 
+/** Result of a movement step, includes new position and movement state */
 export interface MovementResult {
   x: number;
   y: number;
