@@ -1,11 +1,11 @@
 {
-  "savedAt": 1766189855884,
+  "savedAt": 1766190095901,
   "agents": [
     {
       "agentId": "f40e4487-1190-4735-a4bf-60595189f12c",
       "source": "claude",
       "isThinking": true,
-      "lastActivity": 1766189853581,
+      "lastActivity": 1766190089023,
       "displayName": "Claude 1",
       "currentCommand": "Edit",
       "waitingForInput": false

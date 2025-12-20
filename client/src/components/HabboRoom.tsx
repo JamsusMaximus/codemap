@@ -568,46 +568,49 @@ export function HabboRoom() {
             playWriteSound();
           }
 
-          // Move agents on operation start
-          if (recentActivity.type.endsWith('-start')) {
-            const agentId = recentActivity.agentId;
-            if (agentId) {
-              lastActivityByAgentRef.current.set(agentId, {
-                filePath: recentActivity.filePath,
-                timestamp: Date.now()
-              });
+          // Move agents on ALL activity events (both start and end)
+          // This ensures agents run to files on reads AND writes
+          const agentId = recentActivity.agentId;
+          if (agentId) {
+            lastActivityByAgentRef.current.set(agentId, {
+              filePath: recentActivity.filePath,
+              timestamp: Date.now()
+            });
 
-              // Use same matching logic as screen flash for consistency
-              // This ensures agent goes to same desk that lights up
-              let filePos: { x: number; y: number } | undefined;
+            // Use same matching logic as screen flash for consistency
+            // This ensures agent goes to same desk that lights up
+            let filePos: { x: number; y: number } | undefined;
 
-              // First try to find the exact file using priority-based matching
-              if (matchingFileId) {
-                filePos = filePositionsRef.current.get(matchingFileId);
+            // First try to find the exact file using priority-based matching
+            if (matchingFileId) {
+              filePos = filePositionsRef.current.get(matchingFileId);
+            }
+
+            // Fall back to folder-based routing if file not in layout
+            if (!filePos) {
+              const pathParts = recentActivity.filePath.split('/');
+              pathParts.pop(); // Remove filename
+              while (pathParts.length > 0 && !filePos) {
+                const folderPath = pathParts.join('/') || '.';
+                filePos = filePositionsRef.current.get(folderPath);
+                if (!filePos) pathParts.pop();
               }
+              // Try root folder
+              if (!filePos) filePos = filePositionsRef.current.get('.');
+            }
 
-              // Fall back to folder-based routing if file not in layout
-              if (!filePos) {
-                const pathParts = recentActivity.filePath.split('/');
-                pathParts.pop(); // Remove filename
-                while (pathParts.length > 0 && !filePos) {
-                  const folderPath = pathParts.join('/') || '.';
-                  filePos = filePositionsRef.current.get(folderPath);
-                  if (!filePos) pathParts.pop();
-                }
-                // Try root folder
-                if (!filePos) filePos = filePositionsRef.current.get('.');
-              }
+            // Get character and update its activity timestamp + target
+            const char = agentCharactersRef.current.get(agentId);
+            if (char) {
+              // Update last activity to prevent premature return to coffee shop
+              char.lastActivity = Date.now();
 
               if (filePos) {
-                const char = agentCharactersRef.current.get(agentId);
-                if (char) {
-                  const xOffset = ((char.colorIndex % 3) - 1) * 10;
-                  const yOffset = Math.floor(char.colorIndex / 3) * 8;
-                  char.targetX = filePos.x + xOffset;
-                  char.targetY = filePos.y - 28 + yOffset;
-                  char.isMoving = true;
-                }
+                const xOffset = ((char.colorIndex % 3) - 1) * 10;
+                const yOffset = Math.floor(char.colorIndex / 3) * 8;
+                char.targetX = filePos.x + xOffset;
+                char.targetY = filePos.y - 28 + yOffset;
+                char.isMoving = true;
               }
             }
           }
