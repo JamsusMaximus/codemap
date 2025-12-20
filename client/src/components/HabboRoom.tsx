@@ -918,7 +918,9 @@ export function HabboRoom() {
         ctx.globalAlpha = 1;
 
         // Draw all agent characters
-        const isChristmas = christmasModeRef.current;
+        // Poll christmas mode here so agents get the latest state
+        const isChristmas = getChristmasMode();
+        christmasModeRef.current = isChristmas;
         for (const [, char] of agentCharactersRef.current) {
           drawAgentCharacter(ctx, char, isChristmas);
         }
@@ -1024,9 +1026,6 @@ export function HabboRoom() {
           ctx.fillText('Click elsewhere or ESC to exit', trackingX, trackingY + 34);
         }
       }
-
-      // Check christmas mode (poll from global state each frame)
-      christmasModeRef.current = getChristmasMode();
 
       // Draw snow particles when christmas mode is enabled
       if (christmasModeRef.current) {
