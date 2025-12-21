@@ -69,3 +69,13 @@ export interface GraphData {
   nodes: GraphNode[];
   links: GraphLink[];
 }
+
+/** Layout update data - sent when git commit triggers a layout refresh */
+export interface LayoutUpdateData {
+  hotFolders: Array<{
+    folder: string;
+    score: number;
+    recentFiles: string[];
+  }>;
+  timestamp: number;
+}

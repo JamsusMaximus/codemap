@@ -402,6 +402,27 @@ app.post('/api/clear', (_req, res) => {
   res.json({ success: true });
 });
 
+// Handle git commit notification - refresh layout for all clients
+app.post('/api/git-commit', async (_req, res) => {
+  console.log(`[${new Date().toISOString()}] Git commit detected - refreshing layout`);
+
+  // Clear the git activity cache to force fresh data
+  clearGitCache(PROJECT_ROOT);
+
+  // Fetch updated hot folders
+  try {
+    const hotFolders = await getHotFolders(PROJECT_ROOT, 50);
+
+    // Broadcast layout update to all connected clients
+    wsManager.broadcast('layout-update', { hotFolders, timestamp: Date.now() });
+
+    res.json({ success: true, foldersUpdated: hotFolders.length });
+  } catch (error) {
+    console.error('Failed to refresh layout after git commit:', error);
+    res.status(500).json({ error: 'Failed to refresh layout' });
+  }
+});
+
 // Load persisted state before starting server
 loadAgentState();
 

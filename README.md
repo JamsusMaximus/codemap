@@ -60,6 +60,7 @@ AI Agent      →  Hook Scripts  →  Server (:5174)  →  Client (:5173)
 2. **Server Processing**: Server receives events via HTTP, tracks activity, and analyzes git history
 3. **Real-time Updates**: WebSocket broadcasts updates to all connected clients
 4. **Visualization**: Client renders agents moving between rooms, with activity indicators on screens
+5. **Layout Refresh**: On each git commit, the hotel layout automatically recalculates based on updated git history
 
 ---
 
@@ -75,6 +76,7 @@ AI Agent      →  Hook Scripts  →  Server (:5174)  →  Client (:5173)
 ### Hotel View Features
 
 - **Multi-floor Layout**: Rooms arranged vertically based on git activity (hottest folders on ground floor)
+- **Dynamic Layout**: Hotel automatically reorganizes when you make git commits
 - **Room Themes**: Different floor colors based on folder type:
   - 🟦 Blue: Components, UI, Views
   - 🟩 Green: Server, API, Routes
@@ -115,6 +117,7 @@ AI Agent      →  Hook Scripts  →  Server (:5174)  →  Client (:5173)
 - **Endpoints**:
   - `POST /api/activity` - Receives file read/write events
   - `POST /api/thinking` - Receives agent thinking state
+  - `POST /api/git-commit` - Triggers layout refresh (called by git post-commit hook)
   - `GET /api/thinking` - Returns all agent states
   - `GET /api/graph` - Returns file tree data
   - `GET /api/hot-folders` - Returns folders ranked by git activity
@@ -136,6 +139,7 @@ AI Agent      →  Hook Scripts  →  Server (:5174)  →  Client (:5173)
 
 - **`file-activity-hook.sh`**: Captures file operations (read/write start/end)
 - **`thinking-hook.sh`**: Captures agent thinking state and tool usage
+- **`git-post-commit.sh`**: Notifies server to refresh layout after each commit
 - Both hooks work with Claude Code and Cursor automatically
 
 ---
@@ -215,7 +219,8 @@ codemap/
 │   └── setup.js          # Setup script for hooks and server
 ├── hooks/
 │   ├── file-activity-hook.sh
-│   └── thinking-hook.sh
+│   ├── thinking-hook.sh
+│   └── git-post-commit.sh
 ├── server/
 │   └── src/
 │       ├── index.ts      # Express server + WebSocket

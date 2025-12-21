@@ -26,6 +26,7 @@ export function useFileActivity(): {
   activityHistoryRef: MutableRefObject<ActivityFeedEntry[]>;
   activityVersionRef: MutableRefObject<number>;
   thinkingVersionRef: MutableRefObject<number>;
+  layoutVersionRef: MutableRefObject<number>;
   connectionStatusRef: MutableRefObject<ConnectionStatus>;
   clearGraph: () => void;
 } {
@@ -37,6 +38,7 @@ export function useFileActivity(): {
   // Version counters to detect changes without re-rendering
   const activityVersionRef = useRef(0);
   const thinkingVersionRef = useRef(0);
+  const layoutVersionRef = useRef(0);
   // Connection status for UI indicator
   const connectionStatusRef = useRef<ConnectionStatus>('connecting');
 
@@ -121,6 +123,10 @@ export function useFileActivity(): {
         } else if (message.type === 'thinking') {
           thinkingAgentsRef.current = message.data as AgentThinkingState[];
           thinkingVersionRef.current++;
+        } else if (message.type === 'layout-update') {
+          // Git commit triggered a layout refresh
+          console.log('Layout update received from server');
+          layoutVersionRef.current++;
         }
       } catch (err) {
         console.error('Failed to parse message:', err);
@@ -153,6 +159,7 @@ export function useFileActivity(): {
     activityHistoryRef,
     activityVersionRef,
     thinkingVersionRef,
+    layoutVersionRef,
     connectionStatusRef,
     clearGraph
   };

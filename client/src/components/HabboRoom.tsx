@@ -52,6 +52,7 @@ export function HabboRoom() {
     thinkingAgentsRef,
     activityVersionRef,
     thinkingVersionRef,
+    layoutVersionRef,
     connectionStatusRef
   } = useFileActivity();
 
@@ -69,6 +70,7 @@ export function HabboRoom() {
   const lastNodeCountRef = useRef<number>(0);
   const lastActivityVersionRef = useRef(0);
   const lastThinkingVersionRef = useRef(0);
+  const lastLayoutVersionRef = useRef(0);
   const hotFoldersRef = useRef<FolderScore[]>([]);
   const prevAgentCommandsRef = useRef<Map<string, string | undefined>>(new Map());
 
@@ -443,6 +445,13 @@ export function HabboRoom() {
       if (keys.has('ArrowRight')) panRef.current.x -= panSpeed;
       if (keys.has('ArrowUp')) panRef.current.y += panSpeed;
       if (keys.has('ArrowDown')) panRef.current.y -= panSpeed;
+
+      // === CHECK FOR LAYOUT UPDATE (git commit) ===
+      if (layoutVersionRef.current !== lastLayoutVersionRef.current) {
+        lastLayoutVersionRef.current = layoutVersionRef.current;
+        console.log('Git commit detected - refreshing layout');
+        fetchHotFolders();
+      }
 
       // === SYNC AGENTS (replaces useEffect) ===
       if (thinkingVersionRef.current !== lastThinkingVersionRef.current) {
