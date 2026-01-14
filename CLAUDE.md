@@ -2,6 +2,19 @@
 
 Real-time pixel-art visualization of Claude Code and Cursor agents. Shows agents as characters moving around a hotel, working at desks that represent files.
 
+## Agent Quick Start
+
+**Working on hooks?** → Edit `hooks/thinking-hook.sh` or `hooks/file-activity-hook.sh`
+**Working on visualization?** → Edit `client/src/drawing/agent.ts` (sprites) or `client/src/components/HabboRoom.tsx` (main loop)
+**Working on server?** → Edit `server/src/index.ts` (endpoints) or `server/src/types.ts` (data structures)
+
+Key files to understand first:
+1. `server/src/types.ts` - All shared interfaces
+2. `client/src/drawing/types.ts` - Client-side types
+3. `hooks/thinking-hook.sh` - How hook data flows in
+
+Run tests: `cd server && npm test` and `cd client && npm test`
+
 ## Quick Reference
 
 | Resource | URL |
@@ -113,7 +126,9 @@ type ActivityEvent = {
 type ThinkingEvent = {
   type: 'thinking-start' | 'thinking-end';
   agentId: string;
-  toolName?: string;     // Current tool being used
+  toolName?: string;     // Current tool being used (Read, Write, Bash, etc.)
+  toolInput?: string;    // Abbreviated input (filename, command preview, pattern)
+  agentType?: string;    // Agent type (Plan, Explore, Bash) - updates displayName
   source: 'claude' | 'cursor';
 };
 ```
@@ -150,16 +165,19 @@ The core visualization component. Key sections:
 // Agent character (client-side)
 interface AgentCharacter {
   agentId: string;
-  displayName: string;    // "Claude 1", "Cursor 2", etc.
+  displayName: string;    // "Claude 1", "Claude Plan 1", "Cursor 2", etc.
   x: number;              // Current position
   y: number;
   targetX: number;        // Destination position
   targetY: number;
   isMoving: boolean;
   colorIndex: number;     // For sprite palette
+  currentCommand?: string;  // Tool name shown in bubble (Read, Write, Bash)
+  toolInput?: string;     // File/command shown in bubble below tool name
   isThinking: boolean;
-  waitingForInput: boolean;
+  waitingForInput: boolean;  // Shows "Hey! I'm stuck!" bubble + jump animation
   lastActivity: number;   // Timestamp
+  agentType?: string;     // Agent type (Plan, Explore, Bash)
 }
 
 // File position mapping
@@ -182,7 +200,7 @@ filePositionsRef: Map<string, { x: number; y: number }>
 | client/agent-movement.ts | 45 | Movement, positioning |
 | client/screen-flash.ts | 38 | Flash timing, path matching |
 | client/integration.ts | 39 | Data flow validation |
-| **Total** | **206** | |
+| **Total** | **248** | |
 
 ### Running Tests
 

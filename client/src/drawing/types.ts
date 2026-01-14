@@ -16,11 +16,13 @@ export interface AgentCharacter extends Character {
   displayName: string;
   colorIndex: number;
   currentCommand?: string;
+  toolInput?: string;  // File path, command, or pattern being operated on
   waitingForInput?: boolean;
   isIdle?: boolean;
   lastActivity: number;
   lastSeen: number;  // When agent was last seen in server's list (for grace period removal)
   isThinking?: boolean;
+  agentType?: string;  // Agent type (Plan, Explore, Bash, etc.)
 }
 
 export interface RoomLayout {

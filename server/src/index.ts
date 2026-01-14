@@ -260,7 +260,7 @@ app.post('/api/activity', (req, res) => {
 // Receive thinking events
 app.post('/api/thinking', (req, res) => {
   const event: ThinkingEvent = req.body;
-  const { agentId, type, toolName } = event;
+  const { agentId, type, toolName, toolInput, agentType } = event;
   const now = Date.now();
 
   // Register or get existing agent using safe registration
@@ -282,6 +282,25 @@ app.post('/api/thinking', (req, res) => {
     state.currentCommand = toolName;
   }
 
+  // Update tool input for display in bubble
+  if (toolInput) {
+    state.toolInput = toolInput;
+  } else if (type === 'thinking-start') {
+    // Clear tool input when tool completes
+    state.toolInput = undefined;
+  }
+
+  // Update agent type if provided (persists for agent lifetime)
+  if (agentType) {
+    state.agentType = agentType;
+    // Update display name to include agent type: "Claude Plan 1" instead of "Claude 1"
+    const sourceName = state.source === 'claude' ? 'Claude' :
+                       state.source === 'cursor' ? 'Cursor' : 'Agent';
+    const typeLabel = agentType.charAt(0).toUpperCase() + agentType.slice(1);
+    const num = state.displayName.match(/\d+$/)?.[0] || '1';
+    state.displayName = `${sourceName} ${typeLabel} ${num}`;
+  }
+
   // Set waitingForInput for AskUserQuestion tool
   if (type === 'thinking-end' && toolName === 'AskUserQuestion') {
     state.waitingForInput = true;
@@ -291,7 +310,7 @@ app.post('/api/thinking', (req, res) => {
     state.waitingForInput = false;
   }
 
-  console.log(`[${new Date().toISOString()}] ${type.toUpperCase()}: ${state.displayName} ${toolName ? `(${toolName})` : ''}`);
+  console.log(`[${new Date().toISOString()}] ${type.toUpperCase()}: ${state.displayName} ${toolName ? `(${toolName})` : ''}${toolInput ? ` [${toolInput}]` : ''}`);
 
   // Broadcast all agent states to connected clients
   wsManager.broadcast('thinking', getAgentStatesArray());
@@ -324,7 +343,6 @@ app.get('/api/hot-folders', async (req, res) => {
       const liveFiles = recentlyActive.get(folder.folder);
       if (liveFiles && liveFiles.length > 0) {
         // Prepend live files, remove duplicates, keep max 8
-        const existingSet = new Set(folder.recentFiles);
         const merged = [...liveFiles];
         for (const file of folder.recentFiles) {
           if (!merged.includes(file)) {

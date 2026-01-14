@@ -22,20 +22,60 @@ fi
 # Claude: tool_name, Cursor: tool_name or command (for shell)
 TOOL_NAME=$(echo "$INPUT" | /usr/bin/jq -r '.tool_name // .command // empty' 2>/dev/null)
 
+# Extract tool input for visualization (file path, command, pattern)
+# Truncate to 30 chars to keep bubble readable
+TOOL_INPUT=""
+case "$TOOL_NAME" in
+    Read|Write|Edit)
+        TOOL_INPUT=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.file_path // empty' 2>/dev/null)
+        # Extract just the filename for brevity
+        if [ -n "$TOOL_INPUT" ]; then
+            TOOL_INPUT=$(basename "$TOOL_INPUT" 2>/dev/null)
+        fi
+        ;;
+    Bash)
+        # Get first 30 chars of command, avoid exposing full commands
+        TOOL_INPUT=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.command // empty' 2>/dev/null | head -c 30)
+        ;;
+    Grep|Glob)
+        TOOL_INPUT=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.pattern // empty' 2>/dev/null | head -c 30)
+        ;;
+    Task)
+        # Show subagent type for Task tool
+        TOOL_INPUT=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.subagent_type // .tool_input.description // empty' 2>/dev/null | head -c 30)
+        ;;
+esac
+
+# Extract agent type if available (from SessionStart or agent field)
+AGENT_TYPE=$(echo "$INPUT" | /usr/bin/jq -r '.agent_type // .agent // empty' 2>/dev/null)
+
 # Detect source for logging (optional)
 SOURCE="unknown"
 echo "$INPUT" | /usr/bin/jq -e '.session_id' >/dev/null 2>&1 && SOURCE="claude"
 echo "$INPUT" | /usr/bin/jq -e '.conversation_id' >/dev/null 2>&1 && SOURCE="cursor"
 
 # Log for debugging
-echo "$(date): [$SOURCE] THINKING $EVENT_TYPE agent=${AGENT_ID:0:8} tool=$TOOL_NAME" >> "$LOG_FILE"
+echo "$(date): [$SOURCE] THINKING $EVENT_TYPE agent=${AGENT_ID:0:8} tool=$TOOL_NAME input=$TOOL_INPUT" >> "$LOG_FILE"
 
-# Build JSON payload with source identifier
+# Build JSON payload with all available fields
+# Start with base fields
+JSON_PAYLOAD="{\"type\":\"$EVENT_TYPE\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000)"
+
+# Add optional fields if present
 if [ -n "$TOOL_NAME" ]; then
-    JSON_PAYLOAD="{\"type\":\"$EVENT_TYPE\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000),\"toolName\":\"$TOOL_NAME\"}"
-else
-    JSON_PAYLOAD="{\"type\":\"$EVENT_TYPE\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000)}"
+    JSON_PAYLOAD="$JSON_PAYLOAD,\"toolName\":\"$TOOL_NAME\""
 fi
+if [ -n "$TOOL_INPUT" ]; then
+    # Escape special characters in tool input for JSON
+    ESCAPED_INPUT=$(echo "$TOOL_INPUT" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | tr -d '\n')
+    JSON_PAYLOAD="$JSON_PAYLOAD,\"toolInput\":\"$ESCAPED_INPUT\""
+fi
+if [ -n "$AGENT_TYPE" ]; then
+    JSON_PAYLOAD="$JSON_PAYLOAD,\"agentType\":\"$AGENT_TYPE\""
+fi
+
+# Close the JSON object
+JSON_PAYLOAD="$JSON_PAYLOAD}"
 
 # Send event to server (non-blocking with timeout)
 /usr/bin/curl -s -X POST "$SERVER_URL" \

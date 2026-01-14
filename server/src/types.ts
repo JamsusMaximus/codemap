@@ -30,6 +30,8 @@ export interface ThinkingEvent {
   source?: AgentSource;  // Which tool (claude/cursor)
   timestamp: number;
   toolName?: string;  // Current tool being used (e.g., "Read", "Edit", "Bash")
+  toolInput?: string;  // Abbreviated tool input (file path, command, pattern)
+  agentType?: string;  // Agent type from SessionStart (e.g., "Plan", "Explore", "Bash")
 }
 
 export interface AgentThinkingState {
@@ -39,8 +41,10 @@ export interface AgentThinkingState {
   lastActivity: number;
   displayName: string;
   currentCommand?: string;  // Current tool/command being executed
+  toolInput?: string;  // Abbreviated tool input (file path, command, pattern)
   waitingForInput?: boolean;  // True when agent is waiting for user input
   pendingToolStart?: number;  // Timestamp when tool started (for detecting stuck permission prompts)
+  agentType?: string;  // Agent type (e.g., "Plan", "Explore", "Bash") - shown in display name
 }
 
 export interface GraphNode {

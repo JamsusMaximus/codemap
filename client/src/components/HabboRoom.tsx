@@ -483,6 +483,7 @@ export function HabboRoom() {
           const existing = agents.get(agent.agentId);
           if (existing) {
             existing.currentCommand = agent.currentCommand;
+            existing.toolInput = agent.toolInput;
             existing.displayName = agent.displayName;
             existing.lastActivity = agent.lastActivity;
             existing.lastSeen = now;  // Mark as seen
@@ -533,6 +534,7 @@ export function HabboRoom() {
               frame: 0,
               colorIndex,
               currentCommand: agent.currentCommand,
+              toolInput: agent.toolInput,
               waitingForInput: agent.waitingForInput ?? false,
               lastActivity: agent.lastActivity,
               lastSeen: now,

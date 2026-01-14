@@ -18,7 +18,9 @@ export interface AgentThinkingState {
   lastActivity: number;
   displayName: string;
   currentCommand?: string;  // Current tool/command being executed
+  toolInput?: string;  // Abbreviated tool input (file path, command, pattern)
   waitingForInput?: boolean;  // True when agent is waiting for user input
+  agentType?: string;  // Agent type (Plan, Explore, Bash, etc.)
 }
 
 export interface GraphNode {

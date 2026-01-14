@@ -244,19 +244,27 @@ export const drawAgentCharacter = (ctx: CanvasRenderingContext2D, char: AgentCha
   // Speech bubble
   const showBubble = char.waitingForInput || char.currentCommand;
   if (showBubble) {
-    const bubbleText = char.waitingForInput ? "Hey! I'm stuck!" : char.currentCommand!;
     const isStuck = char.waitingForInput;
     const bubbleColor = isStuck ? '#FFE040' : '#FFFFFF';
     const borderColor = isStuck ? '#D0A000' : '#A0A0A0';
     const textColor = isStuck ? '#604000' : '#333333';
+    const secondaryColor = '#666666';
+
+    // Primary text (tool name or stuck message)
+    const primaryText = isStuck ? "Hey! I'm stuck!" : char.currentCommand!;
+    // Secondary text (tool input - file, command, pattern)
+    const secondaryText = !isStuck && char.toolInput ? char.toolInput : null;
 
     ctx.font = 'bold 10px monospace';
-    const tw = ctx.measureText(bubbleText).width;
+    const primaryWidth = ctx.measureText(primaryText).width;
+    ctx.font = '9px monospace';
+    const secondaryWidth = secondaryText ? ctx.measureText(secondaryText).width : 0;
+
     const bubblePadX = 8;
-    const bubbleW = tw + bubblePadX * 2;
-    const bubbleH = 18;
+    const bubbleW = Math.max(primaryWidth, secondaryWidth) + bubblePadX * 2;
+    const bubbleH = secondaryText ? 28 : 18;  // Taller for two lines
     const bubbleX = cx - bubbleW / 2;
-    const bubbleY = cy - 85 - jumpOffset;
+    const bubbleY = cy - (secondaryText ? 95 : 85) - jumpOffset;
     const tailSize = 6;
 
     // Shadow
@@ -294,9 +302,17 @@ export const drawAgentCharacter = (ctx: CanvasRenderingContext2D, char: AgentCha
     ctx.fillStyle = bubbleColor;
     ctx.fillRect(cx - tailSize / 2 + 1, bubbleY + bubbleH - 1, tailSize - 2, 2);
 
-    // Text
+    // Primary text (tool name)
+    ctx.font = 'bold 10px monospace';
     ctx.fillStyle = textColor;
     ctx.textAlign = 'center';
-    ctx.fillText(bubbleText, cx, bubbleY + 13);
+    ctx.fillText(primaryText, cx, bubbleY + (secondaryText ? 11 : 13));
+
+    // Secondary text (tool input) if present
+    if (secondaryText) {
+      ctx.font = '9px monospace';
+      ctx.fillStyle = secondaryColor;
+      ctx.fillText(secondaryText, cx, bubbleY + 23);
+    }
   }
 };
