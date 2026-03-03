@@ -4,7 +4,7 @@ import { GraphNode, FolderScore } from '../types';
 import { playReadSound, playWriteSound, playWaitingSound, initAudio } from '../sounds';
 import { findMatchingFileId } from '../utils/screen-flash';
 
-const API_URL = 'http://localhost:5174/api';
+const API_URL = `${window.location.protocol}//${window.location.host}/api`;
 
 // Multi-floor layout - symmetric diamond shape
 // Expands in middle, tapers at top and bottom for balanced look

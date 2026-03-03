@@ -1,8 +1,8 @@
 import { useEffect, useRef, useCallback, MutableRefObject } from 'react';
 import { GraphData, FileActivityEvent, AgentThinkingState } from '../types';
 
-const WS_URL = 'ws://localhost:5174/ws';
-const API_URL = 'http://localhost:5174/api';
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+const API_URL = `${window.location.protocol}//${window.location.host}/api`;
 const MAX_ACTIVITY_HISTORY = 50;
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected';
