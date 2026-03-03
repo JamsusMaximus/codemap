@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { WebSocketManager } from './websocket.js';
 import { ActivityStore } from './activity-store.js';
@@ -506,7 +507,7 @@ app.post('/api/git-commit', async (_req, res) => {
 });
 
 // Serve client build in production (Express serves everything from one port)
-const clientDist = path.resolve(__dirname, '../../client/dist');
+const clientDist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
   // Catch-all for React Router (/, /hotel)
