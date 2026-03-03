@@ -171,14 +171,25 @@ async function run() {
   console.log('Start Claude Code or Cursor in your project to see agents! 🎮\n');
 }
 
-// Setup Claude Code hooks
-function setupClaudeHooks() {
-  const claudeDir = path.join(TARGET_DIR, '.claude');
-  if (!fs.existsSync(claudeDir)) {
-    fs.mkdirSync(claudeDir, { recursive: true });
+// Setup Claude Code hooks (project-level or global)
+function setupClaudeHooks({ global: isGlobal } = { global: false }) {
+  let settingsPath;
+
+  if (isGlobal) {
+    const homeDir = process.env.HOME || process.env.USERPROFILE;
+    const claudeDir = path.join(homeDir, '.claude');
+    if (!fs.existsSync(claudeDir)) {
+      fs.mkdirSync(claudeDir, { recursive: true });
+    }
+    settingsPath = path.join(claudeDir, 'settings.json');
+  } else {
+    const claudeDir = path.join(TARGET_DIR, '.claude');
+    if (!fs.existsSync(claudeDir)) {
+      fs.mkdirSync(claudeDir, { recursive: true });
+    }
+    settingsPath = path.join(claudeDir, 'settings.local.json');
   }
 
-  const settingsPath = path.join(claudeDir, 'settings.local.json');
   let settings = {};
 
   if (fs.existsSync(settingsPath)) {
@@ -189,8 +200,16 @@ function setupClaudeHooks() {
     }
   }
 
-  // Merge hooks
-  settings.hooks = hooksConfig.hooks;
+  // Merge hooks — preserve existing hooks for each event type, add ours
+  if (!settings.hooks) settings.hooks = {};
+  for (const [eventType, newEntries] of Object.entries(hooksConfig.hooks)) {
+    const existing = settings.hooks[eventType] || [];
+    // Remove any previous codemap hooks
+    const filtered = existing.filter(entry =>
+      !entry.hooks?.some(h => h.command?.includes('file-activity-hook') || h.command?.includes('thinking-hook'))
+    );
+    settings.hooks[eventType] = [...filtered, ...newEntries];
+  }
 
   // Merge permissions
   if (!settings.permissions) settings.permissions = {};
@@ -202,7 +221,8 @@ function setupClaudeHooks() {
   settings.permissions.allow.push(...permissionsConfig.permissions.allow);
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-  console.log('✓ Configured .claude/settings.local.json (Claude Code)');
+  const target = isGlobal ? '~/.claude/settings.json (global)' : '.claude/settings.local.json (project)';
+  console.log(`✓ Configured ${target}`);
 }
 
 // Setup Cursor hooks
@@ -260,15 +280,19 @@ ${GIT_POST_COMMIT_HOOK}
 }
 
 // Setup hooks for ALL detected tools
-function setupHooks() {
+function setupHooks({ global: isGlobal } = { global: false }) {
   // Always setup Claude Code (it's our primary target)
-  setupClaudeHooks();
+  setupClaudeHooks({ global: isGlobal });
 
-  // Also setup Cursor (universal support)
-  setupCursorHooks();
+  // Also setup Cursor (universal support) - always project-level
+  if (!isGlobal) {
+    setupCursorHooks();
+  }
 
   // Setup git hook for layout refresh on commits
-  setupGitHook();
+  if (!isGlobal) {
+    setupGitHook();
+  }
 
   // Make hooks executable
   try {
@@ -280,23 +304,33 @@ function setupHooks() {
   }
 }
 
-function setup() {
+function setup({ global: isGlobal } = { global: false }) {
   console.log('🏨 CodeMap Hotel Setup\n');
   console.log(`CodeMap installed at: ${CODEMAP_ROOT}`);
-  console.log(`Target project: ${TARGET_DIR}\n`);
+  if (isGlobal) {
+    console.log('Mode: global (all Claude Code sessions)\n');
+  } else {
+    console.log(`Target project: ${TARGET_DIR}\n`);
+  }
 
-  setupHooks();
+  setupHooks({ global: isGlobal });
 
   console.log('\nSetup complete! To start visualization:\n');
-  console.log(`  cd ${TARGET_DIR}`);
-  console.log('  codemap-hotel\n');
+  if (isGlobal) {
+    console.log('  Hooks will fire for ALL Claude Code sessions.');
+    console.log('  Start the server separately or use systemd.\n');
+  } else {
+    console.log(`  cd ${TARGET_DIR}`);
+    console.log('  codemap-hotel\n');
+  }
 }
 
 // CLI
 const command = process.argv[2];
+const isGlobal = process.argv.includes('--global');
 
 if (command === 'setup') {
-  setup();
+  setup({ global: isGlobal });
 } else if (command === 'start') {
   // Legacy start command
   run();
@@ -306,7 +340,8 @@ if (command === 'setup') {
 } else {
   console.log('CodeMap Hotel - Visualize Claude Code agents\n');
   console.log('Usage:');
-  console.log('  codemap-hotel         - Setup hooks, start server, open browser');
-  console.log('  codemap-hotel setup   - Only configure hooks for current project');
+  console.log('  codemap-hotel           - Setup hooks, start server, open browser');
+  console.log('  codemap-hotel setup     - Configure hooks for current project');
+  console.log('  codemap-hotel setup --global  - Configure hooks globally (~/.claude/settings.json)');
   console.log('');
 }
