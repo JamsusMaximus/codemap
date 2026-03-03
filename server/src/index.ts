@@ -8,7 +8,7 @@ import { ActivityStore } from './activity-store.js';
 import { getHotFolders, clearCache as clearGitCache } from './git-activity.js';
 import { FileActivityEvent, ThinkingEvent, AgentThinkingState } from './types.js';
 
-const PORT = 5174; // Fixed port - never change
+const PORT = parseInt(process.env.PORT || '5174', 10);
 
 // PROJECT_ROOT: Use env var, command line arg, or detect from cwd
 // If running from server/ subdirectory, go up to find the actual project root
@@ -70,8 +70,8 @@ const SERVER_START_TIME = Date.now();
 const recentActivityBuffer: Array<{ type: string; filePath: string; agentId?: string; timestamp: number }> = [];
 const MAX_ACTIVITY_BUFFER = 50;
 
-// Agent state persistence
-const STATE_FILE = path.join(PROJECT_ROOT, '.codemap-state.json');
+// Agent state persistence — configurable to avoid writing into the watched project
+const STATE_FILE = process.env.CODEMAP_STATE_FILE || path.join(PROJECT_ROOT, '.codemap-state.json');
 
 function saveAgentState(): void {
   try {
@@ -504,6 +504,16 @@ app.post('/api/git-commit', async (_req, res) => {
     res.status(500).json({ error: 'Failed to refresh layout' });
   }
 });
+
+// Serve client build in production (Express serves everything from one port)
+const clientDist = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  // Catch-all for React Router (/, /hotel)
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 // Load persisted state before starting server
 loadAgentState();
