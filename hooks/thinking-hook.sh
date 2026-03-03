@@ -3,7 +3,8 @@
 # Captures thinking state and sends to visualization server
 
 EVENT_TYPE="$1"  # "thinking-start" or "thinking-end"
-SERVER_URL="http://localhost:5174/api/thinking"
+CODEMAP_BASE="${CODEMAP_SERVER_URL:-http://localhost:5174}"
+SERVER_URL="${CODEMAP_BASE}/api/thinking"
 LOG_FILE="/tmp/codemap-hook.log"
 
 # Read JSON from stdin
@@ -89,9 +90,16 @@ fi
 # Close the JSON object
 JSON_PAYLOAD="$JSON_PAYLOAD}"
 
+# Build auth header if API key is set
+AUTH_HEADER=""
+if [ -n "$CODEMAP_API_KEY" ]; then
+    AUTH_HEADER="-H \"Authorization: Bearer $CODEMAP_API_KEY\""
+fi
+
 # Send event to server (non-blocking with timeout)
-/usr/bin/curl -s -X POST "$SERVER_URL" \
+eval /usr/bin/curl -s -X POST "$SERVER_URL" \
     -H "Content-Type: application/json" \
+    $AUTH_HEADER \
     -d "$JSON_PAYLOAD" \
     --connect-timeout 1 \
     --max-time 2 \
@@ -104,7 +112,7 @@ if [ "$TOOL_NAME" = "Grep" ] || [ "$TOOL_NAME" = "Glob" ]; then
     SEARCH_PATH=$(echo "$INPUT" | /usr/bin/jq -r '.tool_input.path // "." // empty' 2>/dev/null)
 
     if [ -n "$SEARCH_PATTERN" ]; then
-        ACTIVITY_URL="http://localhost:5174/api/activity"
+        ACTIVITY_URL="${CODEMAP_BASE}/api/activity"
         SEARCH_EVENT_TYPE="search-start"
         if [ "$EVENT_TYPE" = "thinking-start" ]; then
             SEARCH_EVENT_TYPE="search-end"
@@ -113,8 +121,9 @@ if [ "$TOOL_NAME" = "Grep" ] || [ "$TOOL_NAME" = "Glob" ]; then
 
         echo "$(date): [$SOURCE] FILE $SEARCH_EVENT_TYPE agent=${AGENT_ID:0:8} file=$(basename "$FILE_PATH" 2>/dev/null)" >> "$LOG_FILE"
 
-        /usr/bin/curl -s -X POST "$ACTIVITY_URL" \
+        eval /usr/bin/curl -s -X POST "$ACTIVITY_URL" \
             -H "Content-Type: application/json" \
+            $AUTH_HEADER \
             -d "{\"type\":\"$SEARCH_EVENT_TYPE\",\"filePath\":\"$FILE_PATH\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000)}" \
             --connect-timeout 1 \
             --max-time 2 \
