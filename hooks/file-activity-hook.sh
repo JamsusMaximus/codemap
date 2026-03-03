@@ -3,8 +3,9 @@
 # Captures file activity and sends to visualization server
 
 EVENT_TYPE="$1"  # "read-start", "read-end", "write-start", "write-end"
-SERVER_URL="http://localhost:5174/api/activity"
-THINKING_URL="http://localhost:5174/api/thinking"
+CODEMAP_BASE="${CODEMAP_SERVER_URL:-http://localhost:5174}"
+SERVER_URL="${CODEMAP_BASE}/api/activity"
+THINKING_URL="${CODEMAP_BASE}/api/thinking"
 LOG_FILE="/tmp/codemap-hook.log"
 
 # Read JSON from stdin
@@ -41,10 +42,17 @@ echo "$INPUT" | /usr/bin/jq -e '.conversation_id' >/dev/null 2>&1 && SOURCE="cur
 # Log for debugging
 echo "$(date): [$SOURCE] FILE $EVENT_TYPE agent=${AGENT_ID:0:8} file=$(basename "$FILE_PATH" 2>/dev/null)" >> "$LOG_FILE"
 
+# Build auth header if API key is set
+AUTH_HEADER=""
+if [ -n "$CODEMAP_API_KEY" ]; then
+    AUTH_HEADER="-H \"Authorization: Bearer $CODEMAP_API_KEY\""
+fi
+
 if [ -n "$FILE_PATH" ]; then
     # Send file activity event to server (non-blocking with timeout)
-    /usr/bin/curl -s -X POST "$SERVER_URL" \
+    eval /usr/bin/curl -s -X POST "$SERVER_URL" \
         -H "Content-Type: application/json" \
+        $AUTH_HEADER \
         -d "{\"type\":\"$EVENT_TYPE\",\"filePath\":\"$FILE_PATH\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000)}" \
         --connect-timeout 1 \
         --max-time 2 \
@@ -57,8 +65,9 @@ if [ -n "$TOOL_NAME" ]; then
     if [[ "$EVENT_TYPE" == *"-end" ]]; then
         THINKING_TYPE="thinking-start"
     fi
-    /usr/bin/curl -s -X POST "$THINKING_URL" \
+    eval /usr/bin/curl -s -X POST "$THINKING_URL" \
         -H "Content-Type: application/json" \
+        $AUTH_HEADER \
         -d "{\"type\":\"$THINKING_TYPE\",\"agentId\":\"$AGENT_ID\",\"source\":\"$SOURCE\",\"timestamp\":$(date +%s000),\"toolName\":\"$TOOL_NAME\"}" \
         --connect-timeout 1 \
         --max-time 2 \

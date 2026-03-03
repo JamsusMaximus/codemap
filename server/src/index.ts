@@ -43,6 +43,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Optional API key authentication for write endpoints (activity, thinking, git-commit)
+// When CODEMAP_API_KEY is set, these endpoints require Authorization: Bearer <key>
+const API_KEY = process.env.CODEMAP_API_KEY;
+function requireApiKey(req: express.Request, res: express.Response, next: express.NextFunction): void {
+  if (!API_KEY) return next();
+  const auth = req.headers.authorization;
+  if (auth === `Bearer ${API_KEY}`) return next();
+  res.status(401).json({ error: 'Invalid or missing API key' });
+}
+
 const server = createServer(app);
 const wsManager = new WebSocketManager(server);
 const activityStore = new ActivityStore(PROJECT_ROOT);
@@ -232,7 +242,7 @@ function getAgentStatesArray(): AgentThinkingState[] {
 }
 
 // Receive activity events from hook script
-app.post('/api/activity', (req, res) => {
+app.post('/api/activity', requireApiKey, (req, res) => {
   const event: FileActivityEvent = req.body;
   console.log(`[${new Date().toISOString()}] ${event.type.toUpperCase()}: ${event.filePath}${event.agentId ? ` (${event.agentId.slice(0, 8)})` : ''}`);
 
@@ -285,7 +295,7 @@ app.post('/api/activity', (req, res) => {
 });
 
 // Receive thinking events
-app.post('/api/thinking', (req, res) => {
+app.post('/api/thinking', requireApiKey, (req, res) => {
   const event: ThinkingEvent = req.body;
   const { agentId, type, toolName, toolInput, agentType, model, duration, status } = event;
   const now = Date.now();
@@ -485,7 +495,7 @@ app.post('/api/clear', (_req, res) => {
 });
 
 // Handle git commit notification - refresh layout for all clients
-app.post('/api/git-commit', async (_req, res) => {
+app.post('/api/git-commit', requireApiKey, async (_req, res) => {
   console.log(`[${new Date().toISOString()}] Git commit detected - refreshing layout`);
 
   // Clear the git activity cache to force fresh data
