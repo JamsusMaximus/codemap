@@ -32,7 +32,7 @@ const getFloorColors = (style: FloorStyle): TileColors => {
   }
 };
 
-const API_URL = 'http://localhost:5174/api';
+const API_URL = `${window.location.protocol}//${window.location.host}/api`;
 
 // Adaptive framerate
 const ACTIVE_FPS = 30;
